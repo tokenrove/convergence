@@ -1,0 +1,49 @@
+#
+# level description file -- jd_boss.lvd
+# Convergence
+# $Id: jd_boss.lvd,v 1.2 2002/12/08 18:21:03 retsyn Exp $
+#
+
+name jd_boss
+mode 0
+tilesets 3
+alpha_palette levels/jd_boss/alpha_fg.pal
+beta_palette levels/jd_boss/beta_fg.pal
+line_bank levels/jd_boss/jd_boss.lnd
+alpha_segtree levels/jd_boss/alpha_sp.tree
+beta_segtree levels/jd_boss/beta_sp.tree
+
+###
+# Tilesets
+#
+
+tileset alpha_fg { bank 1 file levels/jd_boss/alpha_fg.tiles }
+ext_tileset quantum_alpha_mg_tiles
+ext_tileset quantum_alpha_bg_tiles
+tileset beta_fg { bank 1 file levels/jd_boss/beta_fg.tiles }
+ext_tileset quantum_beta_mg_tiles
+ext_tileset quantum_beta_bg_tiles
+
+
+###
+# Layers
+#
+
+layer alpha_fg { width 60 height 40  tile_bank 1  priority 2
+    map_bank 0  scroll_speed 128  source levels/jd_boss/alpha_fg.map }
+ext_layer quantum_alpha_mg_mrle
+ext_layer quantum_alpha_bg_mrle
+no_layer
+layer beta_fg { width 60 height 40  tile_bank 1  priority 2
+    map_bank 7  scroll_speed 128  source levels/jd_boss/beta_fg.map }
+ext_layer quantum_beta_mg_mrle
+ext_layer quantum_beta_bg_mrle
+no_layer
+
+
+###
+# Actors
+#
+
+
+# EOF jd_boss.lvd

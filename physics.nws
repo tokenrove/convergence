@@ -1,0 +1,1986 @@
+% physics -- it's one of those science things.  like on tv.
+%
+% Convergence
+% Copyright Pureplay Games / 2002.
+%
+% $Id: physics.nws,v 1.37 2002/12/12 19:38:21 tek Exp $
+
+\documentclass[draft]{article}
+\usepackage{noweb}
+\usepackage{times}
+\usepackage[dvips]{hyperref}
+
+\newcommand{\reg}[1]{{\bf r#1}}
+\def\nwendcode{\endtrivlist \endgroup}
+\let\nwdocspar=\par
+
+\begin{document}
+
+@
+
+\tableofcontents
+
+\section{Notes on the implementation of physics}
+
+I've tried a number of methods of preventing penetration, which is a
+difficult task.  One attempt was halving the velocity until the current
+collision was no longer present, but this was a miserable failure for
+implementation reasons.
+
+At one point we considered a $\Delta t$ approach would be better, with
+time information taken from a hardware timer and the physics loop
+running as fast as possible.  Worries of numerical instability come up
+given that, though.
+
+Eventually, I implemented updating physics (checking collisions) once
+per pixel of movement, like I used to in older games.  It might be much
+less efficient, but it is much more accurate and reliable than the above
+methods.  The prime source of inefficiency is the looping around the
+segment check.
+
+Hopefully this will be more efficient than stepping back, as stepping
+back requires repeated segment checks, while this only needs one
+collision to stop (but may iterate up to npixels times when the actor is
+not around any segments -- which hopefully means most segments are
+screened by bounding boxes and so the check is low cost).  
+
+When we get around to implementing rotscale levels, we'll need to write
+a seperate version of [[physics_individual]], which will go in an
+overlay which will share the same IWRAM space as the current
+(non-rotscale) version.
+
+To provide proper slope handling, as well as some strange abilities, we
+are going to start using the actor's sticky bit.  We are currently just
+not resetting normals between runs of physics, which is not quite
+satisfactory (although it may do anyway, now that Minos can't climb
+ceilings).
+
+
+The safety scan is another interesting issue.  One of the better ideas
+for performing it is based on the insight that connected segments are
+going to be very close in the segment tree.  So, start from some segment
+near the actor (which one?  by choosing one in a definitive place, ie
+furthest left, we can make some robustness guarantees we couldn't make
+otherwise) and perform a polygon inclusion test by the following nifty
+method: (call the initial line $\bar{AB}$, and the point at the actor's
+center $O$)
+
+\begin{enumerate}
+\item Compute the sign of the dot product $\vec{OA} \cdot \vec{AB}$.
+\item If this result is less than zero, the actor is inside the polygon
+    in question.  Terminate.
+\item Otherwise, find $\bar{CB}$, the next line that shares point $B$.
+    This should be quite close by in the segment tree because it shares
+    an endpoint with $\bar{AB}$.
+\item If $\bar{CB}$ was found, return to the first step with $B$ as $A$
+    and $C$ as $B$.
+\item Otherwise, the actor isn't inside the polygon.  Terminate.
+\end{enumerate}
+
+For more robustness one could replace the single dot product operation
+with four, one for each corner of the actor's bounding rectangle.  This
+is probably what we'll end up doing.  No doubt a reasonable amount of
+computation can be shared between the four operations.
+
+
+\section{Skeletons}
+
+<<Files to include>>= 
+	.include "game.inc"
+	.include "gba.inc"
+	.include "actor.inc"
+	.include "physics.inc"
+@
+
+<<Constants>>= 
+.equ MAXSEGMENTS, 256
+@
+
+\subsection{Module-wide Variables}
+
+The variables used here:
+
+The segment list variable holds the list of active segments being
+checked for a given actor during [[physics_individual]].
+
+This used to be completely restricted to 256 entries, but that is no
+longer really a concern because of the new segment handling system.
+
+<<IWRAM Variables>>= 
+        .global seglist
+seglist: .skip MAXSEGMENTS*2
+
+@ We keep a pointer to the array of segments for this level in
+[[linebank]].  This array is shared between both $\alpha$ and $\beta$
+worlds.
+
+The dynamic segment map is used to keep track of the dynamic segment
+allocation.  Currently it is only one word (and hence the maximum
+number of dynamic segments limited to 32), as it is unclear as to
+whether we will ever need more than that.
+
+<<IWRAM Variables>>= 
+	.global linebank
+linebank: .skip 4
+dynsegmap: .skip 4
+@
+<<Constants>>=
+.equ MAX_LINES, 2048
+.equ MAX_DYNSEGS, 32
+@
+<<EWRAM Variables>>=
+linearea: .skip MAX_LINES*SEGRT_SIZE
+dynseg_handlers: .skip MAX_DYNSEGS*4
+dynseg_handler_args: .skip MAX_DYNSEGS*4
+@
+
+\subsection{Undead Routines}
+
+The [[physics_init]] routine currently does nothing but wipes the
+dynamic segment map.
+
+<<ARM Routines in ROM>>= 
+	.global physics_init
+physics_init:
+        ldr r0, =dynsegmap
+        mov r1, #0
+        str r1, [r0]
+	bx lr
+@
+
+This routine responsible for copying the line bank into EWRAM and
+such.
+
+<<ARM Routines in ROM>>= 
+	.global physics_add_linebank
+physics_add_linebank:
+        stmfd sp!, {r4,r5,lr}
+	ldr r1, =linebank
+        ldr r2, =linearea
+	str r2, [r1]
+        ldrh r1, [r0]
+0:      ldmia r0!, {r3,r4,r5}
+        stmia r2!, {r3,r4,r5}
+        subs r1, r1, #12
+        bne 0b
+        ldmfd sp!, {r4,r5,pc}
+
+@ Dynamic seglist management routines.
+
+<<ARM Routines in ROM>>= 
+        .global physics_dynseg_add
+physics_dynseg_add:
+        stmfd sp!, {r0,r1}
+
+	ldr r0, =dynsegmap
+	ldr r1, [r0]
+	mov r2, #0
+0:	tst r1, #1
+	beq 1f
+	mov r1, r1, lsr #1
+	add r2, r2, #1
+	cmp r2, #MAX_DYNSEGS
+	blt 0b
+
+	@ no free segments
+	ldr r0, =msg_nodynsegs
+	bal abort
+
+1:	ldr r1, [r0]
+	mov r3, #1
+	mov r3, r3, lsl r2
+	orr r1, r1, r3
+	str r1, [r0]
+        ldmfd sp!, {r0,r1}
+        ldr r3, =dynseg_handlers
+        str r0, [r3, r2, lsl #2]
+        ldr r3, =dynseg_handler_args
+        str r1, [r3, r2, lsl #2]
+
+	mov r0, r2
+        add r0, r0, #MAX_LINES-MAX_DYNSEGS
+        bx lr
+@
+
+<<ARM Routines in ROM>>= 
+	.global physics_dynseg_remove
+physics_dynseg_remove:
+        subs r0, r0, #MAX_LINES-MAX_DYNSEGS
+        ldrlt r0, =msg_baddynseg
+        blt abort
+	ldr r1, =dynsegmap
+	ldr r3, [r1]
+	mov r2, #1
+	mov r2, r2, lsl r0
+	bic r3, r3, r2
+	str r3, [r1]
+
+        ldr r1, =dynseg_handlers
+        mov r2, #0
+        str r2, [r1, r0, lsl #2]
+        ldr r1, =dynseg_handler_args
+        str r2, [r1, r0, lsl #2]
+	bx lr
+@
+
+<<Read-only data>>= 
+msg_nodynsegs: .string "physics: no segs free!"
+msg_baddynseg: .string "physics: bad dynseg idx!"
+        .align
+@
+
+
+\section{Filling the seglist}
+
+
+To keep the overhead of the individual physics routine low, even for
+large levels, we make a list of active (close to actor) segments.  We
+populate this list by walking the segment tree and adding all the lines
+which fall within the supplied rectangle.
+
+Specifically, we do two intersection queries, followed by a range query.
+The former covers lines which span the left and right sides of the query
+rectangle, while the latter covers lines which fall between the sides of
+the query rectangle.
+
+I think we might also need to do intersection queries for the top and
+bottom of the query rectangle, but that remains to be seen.
+
+{\bf WARNING:} do not monkey with the fact that the end of the list is
+returned in {\bf r8}.  [[physics_individual]] depends on it.
+
+<<ARM Routines in ROM>>= 
+	@ physics_fill_seglist(tree, x, x', y, y' [in r4], list [in r5])
+	.global physics_fill_seglist
+physics_fill_seglist:
+	stmfd sp!, {r6-r10,r12,lr}
+	ldr r6, =physics_fill_seglist_iw
+	mov lr, pc
+	mov pc, r6
+	ldmfd sp!, {r6-r10,r12,lr}
+	bx lr
+
+<<ARM Routines in IWRAM>>= 
+physics_fill_seglist_iw:
+	stmfd sp!, {lr}
+	mov r8, r5
+	mov r7, #0
+	mov r5, #0
+	ldr r9, =linebank
+	ldr r9, [r9]
+
+	stmfd sp!, {r0,lr}
+	bl range_query
+	ldmfd sp!, {r0,lr}
+
+	stmfd sp!, {r0,lr}
+	mov r7, #0
+	bl intersection_query
+	ldmfd sp!, {r0,lr}
+
+	mov r7, #0
+	mov r1, r2
+	bl intersection_query
+
+	mov r7, #0		    @ terminate the list
+	strh r7, [r8]
+
+	ldmfd sp!, {pc}
+
+	<<Intersection query>>
+	<<Range query>>
+
+@ An intersection query is slightly faster than a range query, as it is
+tail-recursive in both left and right cases.  At each level of the tree,
+we choose one path and never turn back, so we don't need much stack
+space.
+
+We always add the lines associated with whatever node we're on, then we
+decide whether to recurse into the left or the right subtree.
+
+<<Intersection query>>= 
+intersection_query:
+0:	add r0, r0, r7, lsl #2
+
+	<<Add the associated lines to the segment list>>
+
+1:	<<Check the left subtree for intersection>>
+1:	<<Check the right subtree for intersection>>
+9:	bx lr
+
+@ We decide whether to descend into the left or the right subtree by
+whether the left subtree's interval covers our query point.
+
+<<Check the left subtree for intersection>>= 
+	ldrh r7, [r0, #SEGNODE_LEFT]
+	cmp r7, #0
+	beq 1f
+	<<Check that this span covers the query>>
+	ldrh r7, [r0, #SEGNODE_LEFT]
+	bal 0b
+
+@ If the right pointer isn't $\Lambda$, descend.
+
+<<Check the right subtree for intersection>>= 
+	ldrh r7, [r0, #SEGNODE_RIGHT]
+	cmp r7, #0
+	bne 0b
+
+@ We check that the query is within the span of this node.
+
+<<Check that this span covers the query>>= 
+	add r7, r0, r7, lsl #2
+
+	ldrh r6, [r7, #SEGNODE_XLEFT]
+	ldrh r7, [r7, #SEGNODE_XRIGHT]
+
+	cmp r6, r7
+	eorgt r6, r6, r7
+	eorgt r7, r6, r7
+	eorgt r6, r6, r7
+
+	cmp r6, r1
+	cmple r1, r7
+	bgt 1f
+
+@ Now for the range search.  In this case, we always check the range
+immediately, and only add the associated lines if this node is within
+our range.
+
+<<Range query>>= 
+range_query:
+0:	add r0, r0, r7, lsl #2
+
+	<<Check that this span is within our window>>
+
+	<<Add the associated lines to the segment list>>
+
+1:	<<Descend into the left subtree>>
+1:	<<Descend into the right subtree>>
+9:	bx lr
+
+@ The idea here is to verify that the maximal left point is less than
+or equal to the minimal right point.  This short snippet of code has
+been notorious for having subtle bugs.  Be careful.
+
+<<Check that this span is within our window>>= 
+	ldrh r6, [r0, #SEGNODE_XLEFT]
+	ldrh r7, [r0, #SEGNODE_XRIGHT]
+
+	cmp r6, r7
+	eorgt r6, r6, r7
+	eorgt r7, r6, r7
+	eorgt r6, r6, r7
+
+	cmp r6, r1
+	movlt r6, r1
+	cmp r7, r2
+	movgt r7, r2
+	cmp r7, r6
+	blt 9f
+
+@ As long as the pointer to the left subtree isn't $\Lambda$, descend
+into it.
+
+<<Descend into the left subtree>>= 
+	ldrh r7, [r0, #SEGNODE_LEFT]
+	cmp r7, #0
+	beq 1f
+	stmfd sp!, {r0,lr}
+	bl 0b
+	ldmfd sp!, {r0,lr}
+
+@ Much the same.  Note the tail-call optimization, not present in the
+left subtree descent.
+
+<<Descend into the right subtree>>= 
+	ldrh r7, [r0, #SEGNODE_RIGHT]
+	cmp r7, #0
+	bne 0b
+
+@ Add the lines associated with this node to the active segment list.
+This is shared by both the intersection query and the range query.
+
+{\bf XXX} We currently compromise on the following issue by removing any
+{\em runs} of duplicates.  The following notes are here for further info
+but are not current.  \small Note that we should probably remove
+duplicates here.  We don't bother at the moment because there has yet to
+be any need.  Vertical elimination works well enough.  These days the
+seglist is small enough that we could just run through it at the end and
+remove duplicates.  For the moment we'll avoid that, however.
+\normalsize
+
+{\bf XXX} Also, we should be treating this like the sorted list it is.
+We can make the whole vertical elimination process easier with the
+knowledge that the lines are sorted by their Y coordinate.
+
+<<Add the associated lines to the segment list>>= 
+	add r6, r0, #SEGNODE_LINES
+1:	ldrh r7, [r6], #2
+	cmp r7, #0
+	beq 1f
+
+        cmp r5, #0
+        moveq r10, #0
+        ldrneh r10, [r8, #-2]
+        cmp r10, r7
+        beq 3f
+	strh r7, [r8], #2
+	add r5, r5, #1
+
+	<<Perform vertical elimination>>
+
+3:	cmp r5, #0xff
+	bgt 9f			    @ XXX this is not the right way to
+				    @ do this
+	bal 1b
+
+@ Since the segment tree only organizes horizontal spans, and not vertical
+ones, we have to check that this segment's vertical span is within our
+window.  See also the note on checking the horizontal span, above.
+
+<<Perform vertical elimination>>= 
+	add r7, r7, r7, lsl #1
+	add r7, r9, r7, lsl #2
+	ldrh r10, [r7, #SEGRT_Y1]
+	ldrh r12, [r7, #SEGRT_Y2]
+
+	cmp r10, r12
+	eorgt r10, r10, r12
+	eorgt r12, r10, r12
+	eorgt r10, r10, r12
+
+	cmp r10, r3
+	movlt r10, r3
+	cmp r12, r4
+	movgt r12, r4
+	cmp r12, r10
+	bge 3f
+
+	sub r8, r8, #2
+	sub r5, r5, #1
+@
+
+
+\section{Physics on a solitary rigid body}
+
+
+Most complex of the physics routines is [[physics_individual]].  This
+has to update the actor's velocity and position, apply physical effects
+such as friction and gravity, check for collision between the actor and
+the playfield, and apply the effect of slopes.
+
+We expect the actor pointer in \reg0 and the tree pointer in \reg1.
+
+<<ARM Routines in ROM>>= 
+.equ TMP_SEGB, -64
+.equ TMP_VX, -60
+.equ TMP_VY, -58
+.equ TMP_XDELTA, -56
+.equ TMP_YDELTA, -55
+.equ TMP_SLOPEX, -54
+.equ TMP_SLOPEY, -52
+.equ TMP_XFLAG, -50
+.equ TMP_INTERSECTX, -49
+.equ TMP_FLOOR, -48
+.equ TMP_WALL, -46
+	@ -44 to -41 free
+	.global physics_individual
+physics_individual:
+	ldr r2, =physics_individual_iw
+	mov pc, r2
+
+@ The general outline of this routine is that we first integrate
+velocity into position, while checking for playfield collisions, and we
+then integrate acceleration into velocity, applying any effects of
+floors or walls with which we may be colliding.
+
+At the end, we run the dynamic segment handler for the actor's floor, if
+it exists and is a dynamic segment of course.  This might end up being
+moved to an earlier point in the routine, for example the area where
+velocity is integrated into position.
+
+<<ARM Routines in IWRAM>>= 
+	.pool
+
+physics_individual_iw:
+	mov ip, sp
+	stmfd sp!, {r4-r10,fp,ip,lr}
+	mov fp, ip
+	sub sp, sp, #24
+
+	mov r10, r0
+
+	<<Fill segment list>>
+
+	ldr r1, =actor_segs
+	ldrb r2, [r10, #ACTRT_IDX]
+	add r1, r1, r2, lsl #2
+	ldrh r2, [r1, #ACTSEG_FLOOR]
+	strh r2, [fp, #TMP_FLOOR]
+	ldrh r2, [r1, #ACTSEG_WALL]
+	strh r2, [fp, #TMP_WALL]
+
+	<<Check and reset normals>>
+	ldrh r4, [r10, #ACTRT_X]
+	ldrh r5, [r10, #ACTRT_Y]
+	<<Integrate velocity into position>>
+	<<Setup variables for collision>>
+	<<Check for segment collision>>
+
+9:	<<Integrate velocity into position, post collision>>
+
+	ldrsh r6, [r10, #ACTRT_VX]
+	ldrsh r7, [r10, #ACTRT_VY]
+	ldrh r4, [r10, #ACTRT_X]
+	ldrh r5, [r10, #ACTRT_Y]
+
+	<<Integrate acceleration into velocity>>
+	<<Apply slope constraints>>
+7:	<<Apply friction>>
+9:	<<Apply terminal velocity>>
+	strh r6, [r10, #ACTRT_VX]
+	strh r7, [r10, #ACTRT_VY]
+
+	ldr r1, =actor_segs
+	ldrb r2, [r10, #ACTRT_IDX]
+	add r1, r1, r2, lsl #2
+	ldrh r2, [fp, #TMP_WALL]
+	strh r2, [r1, #ACTSEG_WALL]
+	ldrh r2, [fp, #TMP_FLOOR]
+	strh r2, [r1, #ACTSEG_FLOOR]
+        cmp r2, #MAX_LINES-MAX_DYNSEGS
+        blt 9f
+
+        sub r2, r2, #MAX_LINES-MAX_DYNSEGS
+        ldr r4, =dynseg_handlers
+        ldr r4, [r4, r2, lsl #2]
+        cmp r4, #0
+        beq 9f
+
+        ldr r0, =dynseg_handler_args
+        ldr r0, [r0, r2, lsl #2]
+
+        mov r1, r10
+
+        mov lr, pc
+        mov pc, r4
+
+9:      ldmea fp, {r4-r10,fp,sp,pc}
+
+	.pool
+
+@ We want to construct a segment list from about twice the actor's
+bounding box.  Note that this should be as small as possible to speed
+things up, but also sufficiently large so as to cover as much distance
+as the actor possibly could in one physics instance.  So, the amount
+beyond the clip window we should test should really be based on the
+actor's velocity.
+
+<<Fill segment list>>= 
+	mov r0, r1
+
+	ldrh r1, [r10, #ACTRT_X]
+	ldrh r3, [r10, #ACTRT_Y]
+
+	ldrsb r2, [r10, #ACTRT_CLIPXOFF]
+	add r1, r1, r2
+	ldrb r5, [r10, #ACTRT_CLIPW]
+	add r2, r1, r5
+	ldrsh r5, [r10, #ACTRT_VX]
+	movs r5, r5, asr #8
+	rsblt r5, r5, #0
+        add r5, r5, #1
+	add r2, r2, r5
+	subs r1, r1, r5
+	movlt r1, #0
+
+	ldrsb r4, [r10, #ACTRT_CLIPYOFF]
+	add r3, r3, r4
+	ldrb r5, [r10, #ACTRT_CLIPH]
+	add r4, r3, r5
+	ldrsh r5, [r10, #ACTRT_VY]
+	movs r5, r5, asr #8
+	rsblt r5, r5, #0
+        add r5, r5, #1
+	add r4, r4, r5
+	subs r3, r3, r5
+	movlt r3, #0
+
+	ldr r5, =seglist
+
+	stmfd sp!, {r10,r12,lr}
+	bl physics_fill_seglist_iw
+	ldmfd sp!, {r10,r12,lr}
+
+        <<Add dynamic segments>>
+
+@ Having added the static segments from the tree, we now must add any
+dynamic segments.  There isn't much point doing any screening on them,
+as they are few and will be easily weeded out by the bounding box checks
+later.
+
+We walk the allocation map, adding each set segment to the segment list.
+
+Note this depends on a feature of the seglist fill routine, wherein the
+pointer to the end of the list is returned in \reg8.
+
+<<Add dynamic segments>>= 
+        ldr r0, =dynsegmap
+        ldr r0, [r0]
+        mov r1, #0
+        mov r2, #MAX_LINES-MAX_DYNSEGS
+0:      tst r0, #1
+        strneh r2, [r8], #2
+        add r2, r2, #1
+        movs r0, r0, lsr #1
+        bne 0b
+        strh r0, [r8], #2
+
+@ What we should be doing here: If either normal exists, we check that
+the actor is actually colliding with it.  If the actor isn't colliding
+with a normal which is set, we reset it.
+
+Be careful with the labels in this section, they can be quite touchy.
+Also note that we use \reg{14} as a temporary in this section.  That
+means that until the point where the macro [[determine_angle_m]] is
+used, no function calls may be made.
+
+{\bf XXX} these areas deserve way more comment.
+
+<<Check and reset normals>>= 
+	ldrh r2, [fp,#TMP_FLOOR]
+	cmp r2, #0
+	beq 8f
+
+	ldr r12, =linebank
+	ldr r12, [r12]
+	add r2, r2, r2, lsl #1
+	add r12, r12, r2, lsl #2
+	mov r14, r12		    @ danger will robinson
+	<<Determine if we're still colliding with the normal>>
+	bal 3f
+
+7:	bal 8f
+
+3:	mov r12, r14
+	determine_angle_m position
+
+7:	strh r1, [fp, #TMP_SLOPEX]
+	strh r0, [fp, #TMP_SLOPEY]
+	mov r2, #1
+	strb r2, [fp, #TMP_XFLAG]
+
+        @ sweet mother of God, this area deserves comments
+	ldrb r0, [fp, #TMP_INTERSECTX]
+	cmp r0, #0
+	beq 9f
+	cmp r0, #1
+	ldrh r0, [r10, #ACTRT_X]
+	ldrsb r1, [r10, #ACTRT_CLIPXOFF]
+	add r0, r0, r1
+	ldrneb r1, [r10, #ACTRT_CLIPW]
+	addne r0, r0, r1
+
+	@ get y = (rise * x + segb) * recip[run]
+	ldrh r1, [r12, #SEGRT_Y1]
+	ldrh r2, [r12, #SEGRT_Y2]
+	ldr r3, [fp, #TMP_SEGB]
+	@ldr r0, [fp, #TMP_SEGB]
+	subs r1, r2, r1
+	rsblt r1, r1, #0
+	mla r0, r1, r0, r3
+	ldrh r1, [r12, #SEGRT_X1]
+	ldrh r2, [r12, #SEGRT_X2]
+	subs r1, r2, r1
+	rsblt r1, r1, #0
+	subs r1, r1, #2
+	blt 9f
+	ldr r3, =recip_table
+	mov r1, r1, lsl #1
+	ldrh r2, [r3, r1]
+	muls r0, r2, r0
+	rsblt r0, r0, #0
+	add r0, r0, #0x8000	    @ round up
+	mov r0, r0, asr #16
+
+	@ set y to above
+7:	ldrsb r1, [r10, #ACTRT_CLIPYOFF]
+	sub r0, r0, r1
+	ldrb r1, [r10, #ACTRT_CLIPH]
+	sub r0, r0, r1
+	strh r0, [r10, #ACTRT_Y]
+	bal 9f
+
+8:	mov r2, #0
+	strh r2, [fp,#TMP_FLOOR]
+	mov r2, #0
+	strb r2, [fp, #TMP_XFLAG]
+
+@ Same idea, for the wall.
+
+<<Check and reset normals>>= 
+9:	ldrh r2, [fp,#TMP_WALL]
+	cmp r2, #0
+	beq 8f
+
+	ldr r12, =linebank
+	ldr r12, [r12]
+	add r2, r2, r2, lsl #1
+	add r12, r12, r2, lsl #2
+	<<Determine if we're still colliding with the normal>>
+	bal 3f
+
+7:
+8:	mov r2, #0
+	strh r2, [fp,#TMP_WALL]
+
+3:
+9:
+
+@ As this is mostly a duplication of code from the main segment check
+loop, it should all be merged into a subroutine or similar.
+
+<<Determine if we're still colliding with the normal>>= 
+	ldrh r4, [r10, #ACTRT_X]
+	ldrh r5, [r10, #ACTRT_Y]
+
+	<<Setup variables for collision>>
+	<<Load segment coordinates>>
+	<<Screen segment by bounding rectangle>>
+
+	<<Precalculate segment's y intercept>>
+
+	mov r8, #1
+	strb r8, [fp, #TMP_INTERSECTX]
+	line_check_m r4, r5, r4, r7
+	bal 3f
+7:	mov r8, #2
+	strb r8, [fp, #TMP_INTERSECTX]
+	line_check_m r6, r5, r6, r7
+	bal 3f
+7:	mov r8, #0
+	strb r8, [fp, #TMP_INTERSECTX]
+	line_check_m r4, r5, r6, r5
+	bal 3f
+7:	line_check_m r4, r7, r6, r7
+
+@
+
+\subsection{Integration of velocity into position}
+
+Simple Euler integration is good enough for our purposes here.  We
+represent most of our physical constants as 8.8 fixed point values.
+The actor's position is made granular via the xdelta and ydelta values,
+which are the 8-bit fractional portion of the position, so the whole
+position is 16.8 fixed point.
+
+We first move $v_x$ and $v_y$ to [[TMP_VX]] and [[TMP_VY]] so we can
+work on them from there.
+
+<<Integrate velocity into position>>= 
+	ldrsh r0, [r10, #ACTRT_VX]
+	strh r0, [fp, #TMP_VX]
+	ldrsh r1, [r10, #ACTRT_VY]
+	strh r1, [fp, #TMP_VY]
+
+	ldrb r2, [r10, #ACTRT_XDELTA]
+	strb r2, [fp, #TMP_XDELTA]
+	ldrb r2, [r10, #ACTRT_YDELTA]
+	strb r2, [fp, #TMP_YDELTA]
+
+@ Then, as long as either of [[TMP_VX]] or [[TMP_VY]] is not equal
+to zero, we bring each a step closer to zero (\`a la friction), adding
+this to $x$ and $y$.
+
+{\bf XXX} this part is too long without documentation.
+
+<<Integrate velocity into position>>= 
+position_loop:
+	mov r8, #0
+
+	ldrsh r0, [fp, #TMP_VX]
+
+	cmp r0, #0
+	beq 4f
+
+	mov r8, #0x100		    @ also an indicator that we want to go
+				    @ through the loop.
+
+	ldrb r2, [fp, #TMP_XFLAG]
+	cmp r2, #0
+	beq 3f
+
+	mov r1, #0
+	strh r1, [fp, #TMP_VY]
+
+	cmp r0, r8
+	bge 0f
+	rsblt r8, r8, #0
+	cmp r0, r8
+	bgt 1f
+
+0:	sub r0, r0, r8
+	bal 2f
+
+1:	@ finish off the last of the x velocity
+	mov r8, r0
+	mov r0, #0
+
+2:	strh r0, [fp, #TMP_VX]
+	ldrb r2, [r10, #ACTRT_XDELTA]
+	ldrb r3, [r10, #ACTRT_YDELTA]
+	ldrsh r0, [fp, #TMP_SLOPEX]
+	ldrsh r1, [fp, #TMP_SLOPEY]
+	mul r0, r8, r0
+	add r2, r2, r0, asr #12
+	mul r1, r8, r1
+	sub r3, r3, r1, asr #12
+	@ XXX apply y velocity and gravity here...
+
+	add r4, r4, r2, asr #8
+	add r5, r5, r3, asr #8
+	strb r2, [fp, #TMP_XDELTA]
+	strb r3, [fp, #TMP_YDELTA]
+	bal 2f
+
+3:	cmp r0, r8
+	bge 0f
+	rsblt r8, r8, #0
+	cmp r0, r8
+	bgt 1f
+
+0:	sub r0, r0, r8
+	strh r0, [fp, #TMP_VX]
+	add r4, r4, r8, asr #8
+	bal 4f
+
+1:	@ finish off the last of the x velocity
+	ldrb r2, [r10, #ACTRT_XDELTA]
+	add r2, r2, r0
+	add r4, r4, r2, asr #8
+	strb r2, [fp, #TMP_XDELTA]
+	mov r0, #0
+	strh r0, [fp, #TMP_VX]
+
+4:	ldrsh r1, [fp, #TMP_VY]
+	cmp r1, #0
+	cmpeq r8, #0
+	beq end_position_loop	    @ skip the whole thing
+	cmp r1, #0
+	beq 2f
+	ldrb r0, [fp, #TMP_XFLAG]
+	cmp r0, #1
+	beq 2f
+
+	mov r8, #0x100
+	cmp r1, r8
+	bge 0f
+	rsblt r8, r8, #0
+	cmp r1, r8
+	bgt 1f
+
+0:	sub r1, r1, r8
+	strh r1, [fp, #TMP_VY]
+	add r5, r5, r8, asr #8
+	bal 2f
+
+1:	ldrb r2, [r10, #ACTRT_YDELTA]
+	add r2, r2, r1
+	add r5, r5, r2, asr #8
+	strb r2, [fp, #TMP_YDELTA]
+	mov r1, #0
+	strh r1, [fp, #TMP_VY]
+
+2:
+
+@ If there was a collision, we want to reset as many appropriate
+variables as possible.  If there wasn't, we want to go back to the top
+anyway.  However, we will need to save our current progress.
+
+We want to compare the actrt's copy of $v_x$ and $v_y$ with the ones
+we've put in the local frame.
+
+<<Integrate velocity into position, post collision>>= 
+	mov r8, #0
+
+	ldrh r0, [fp, #TMP_FLOOR]
+	cmp r0, #0
+	beq 1f
+	ldrsh r0, [r10, #ACTRT_VY]
+	cmp r0, #0
+	movgt r0, #0
+	strgth r0, [fp, #TMP_VY]
+	strgth r0, [r10, #ACTRT_VY]
+	orrgt r8, r8, #2
+
+1:	ldrh r0, [fp, #TMP_WALL]
+	cmp r0, #0
+	orrne r8, r8, #1
+
+	ldrsh r0, [r10, #ACTRT_VX]
+	cmp r0, #0
+	streqh r0, [fp, #TMP_VX]
+	orreq r8, r8, #1
+	ldrsh r1, [r10, #ACTRT_VY]
+	cmp r1, #0
+	streqh r1, [fp, #TMP_VY]
+	orreq r8, r8, #2
+
+	tst r8, #1
+	bne 1f
+	ldrb r0, [fp, #TMP_XDELTA]
+	strb r0, [r10, #ACTRT_XDELTA]
+	ldrsb r2, [r10, #ACTRT_CLIPXOFF]
+	sub r4, r4, r2
+	strh r4, [r10, #ACTRT_X]
+	ldrb r1, [fp, #TMP_XFLAG]
+	cmp r1, #0
+	bicne r8, r8, #2
+1:	tst r8, #2
+	bne 2f
+	ldrb r1, [fp, #TMP_YDELTA]
+	strb r1, [r10, #ACTRT_YDELTA]
+	ldrsb r2, [r10, #ACTRT_CLIPYOFF]
+	sub r5, r5, r2
+	strh r5, [r10, #ACTRT_Y]
+
+2:	bne position_loop
+end_position_loop:
+
+@
+
+\subsection{Integration of acceleration into velocity}
+
+Integrating acceleration into velocity is similar to the velocity --
+position integration above, however we also apply gravity, and must then
+also take into account the effect of any slope the actor is standing on.
+
+<<Integrate acceleration into velocity>>= 
+	ldrsh r4, [r10, #ACTRT_AX]
+	ldrsh r5, [r10, #ACTRT_AY]
+	add r5, r5, #GRAVITY
+
+@ This no longer really exists.
+
+<<Apply slope constraints>>= 
+	add r6, r6, r4
+	add r7, r7, r5
+	ldrh r1, [fp, #TMP_FLOOR]
+	cmp r1, #0
+	beq 9f
+
+	ldr r12, =linebank
+	ldr r12, [r12]
+	add r1, r1, r1, lsl #1
+	add r12, r12, r1, lsl #2
+@
+
+\subsection{Miscellaneous}
+
+We load the applicable friction value from the line which defines our
+floor.  We have to be careful when applying it, to ensure that it always
+sinks towards zero.
+
+{\bf XXX} this must be applied before the velocity has slope constraints
+applied.
+
+<<Apply friction>>= 
+	ldrsb r0, [r12, #SEGRT_FRICTION]
+	cmp r6, #0
+	bgt 8f
+	adds r6, r6, r0
+	movgt r6, #0
+	bal 9f
+8:	subs r6, r6, r0
+	movlt r6, #0
+
+@ Terminal velocity requires caution similar to that taken when applying
+friction.  We use fixed constants, however, instead of loading values
+from the segment at hand.  It is worth noting that we try to base
+some of these values on the actor's archetypical speed, but it is
+unclear as to how the scale should work.  Currently we just multiply,
+which will probably need some changes.  For downward velocity, we don't
+use the speed value (to prevent ridiculous gravity differences).
+
+<<Apply terminal velocity>>= 
+	ldr r1, =archetype_table
+	ldrh r0, [r10, #ACTRT_TYPE]
+	mov r0, r0, lsl #1
+	ldrh r0, [r1, r0]
+	add r1, r1, r0, lsl #2
+	ldr r0, =difficulty_level
+	ldrb r0, [r0]
+	add r0, r0, #1
+	ldrb r1, [r1, r0]
+
+	mov r0, #X_TERMINAL_VELOCITY
+	mul r0, r1, r0
+	cmp r6, r0
+	movgt r6, r0
+	rsb r0, r0, #0
+	cmp r6, r0
+	movlt r6, r0
+
+	mov r0, #Y_TERMINAL_VELOCITY
+	mov r0, r0, lsl #5
+	cmp r7, r0
+	movgt r7, r0
+ @	mov r0, r0, lsl #2	    @ uncomment this to make jumps ``floaty''
+	mov r0, #Y_TERMINAL_VELOCITY
+	mul r0, r1, r0
+ 	rsb r0, r0, #0
+	cmp r7, r0
+	movlt r7, r0
+
+@ In preparation for the collision detection portion of the routine, we
+set up registers \reg4 --- \reg7 with the coordinates of the actor's
+clipping rectangle.
+
+<<Setup variables for collision>>= 
+	ldrsb r2, [r10, #ACTRT_CLIPXOFF]
+	add r4, r4, r2
+	ldrsb r2, [r10, #ACTRT_CLIPYOFF]
+	add r5, r5, r2
+	ldrb r2, [r10, #ACTRT_CLIPW]
+	add r6, r4, r2
+	ldrb r2, [r10, #ACTRT_CLIPH]
+	add r7, r5, r2
+
+@ There's no point checking segments if we have no velocity.
+
+<<Skip segcheck if we have no velocity>>= 
+	cmp r0, #0
+	cmpeq r1, #0
+	beq 9f
+@
+
+
+\section{Collision!}
+
+
+The process of checking for collisions is quite involved.  For each
+segment in the list, we first check if its bounding rectangle intersects
+the actor's bounding rectangle.  If they do intersect, we proceed to
+check each line of the actor's bounding rectangle against the line, to
+determine what kind of collision response is desired.
+
+<<Check for segment collision>>= 
+	ldr r14, =seglist
+	ldrh r9, [r14], #2
+	cmp r9, #0
+	beq 9f
+        bal 0f
+
+        .pool
+        .align
+
+0:	ldrh r8, [fp, #TMP_FLOOR]
+	cmp r8, r9
+	beq 8f
+	ldrh r8, [fp, #TMP_WALL]
+	cmp r8, r9
+	beq 8f
+
+	ldr r12, =linebank
+	ldr r12, [r12]
+	add r9, r9, r9, lsl #1
+	add r12, r12, r9, lsl #2
+
+	<<Exclusion by type>>
+1:	<<Load segment coordinates>>
+	<<Screen segment by bounding rectangle>>
+	<<Precalculate segment's y intercept>>
+
+        @tst r9, #1
+        @bne 5f
+        tst r9, #2
+        bne 5f
+
+	<<Check left edge of actor's bounding rectangle>>
+	<<Check right edge of actor's bounding rectangle>>
+	<<Check upper edge of actor's bounding rectangle>>
+5:	<<Check lower edge of actor's bounding rectangle>>
+
+7:	@ Escape the loop if both normals are filled.
+	ldrh r0, [fp, #TMP_FLOOR]
+	cmp r0, #0
+	beq 8f
+	ldrh r0, [fp, #TMP_WALL]
+	cmp r0, #0
+	bne 9f
+
+8:	ldrh r9, [r14], #2
+	cmp r9, #0
+	bne 0b
+
+@ We wish to exclude certain types of lines at certain times.  The
+important cases are passable segments (can only be hit by the bottom of
+the clip rectangle while heading down), and then the directional
+switches.  XXX document further.
+
+<<Exclusion by type>>= 
+        mov r9, #0
+	ldrb r0, [r12, #SEGRT_TYPE]
+	tst r0, #SEGTYPE_FLAG_PASS
+	beq 1f
+        orr r9, r9, #2
+        ldrb r2, [r10, #ACTRT_FLAGS]
+        tst r2, #ACTRT_FLAG_SLOPEIGNORE
+        bne 8f
+	ldrsh r2, [r10, #ACTRT_VY]
+	cmp r2, #0
+	ble 8f
+
+1:	ldrh r2, [r12, #SEGRT_X1]
+	ldrh r3, [r12, #SEGRT_X2]
+        cmp r2, r3
+	beq 1f
+	ldrsh r2, [r10, #ACTRT_VY]
+	tst r0, #SEGTYPE_FLAG_Y
+	beq 2f
+        cmp r2, #0
+        blt 3f
+        bal 1f
+2:	cmp r2, #0
+        ble 1f
+        ldrh r2, [r12, #SEGRT_Y1]
+        ldrh r3, [r12, #SEGRT_Y2]
+        cmp r2, r3
+        orreq r9, r9, #1
+	bal 3f
+
+1:	ldrh r2, [r12, #SEGRT_Y1]
+	ldrh r3, [r12, #SEGRT_Y2]
+	cmp r2, r3
+	beq 1f
+	ldrsh r1, [r10, #ACTRT_VX]
+	tst r0, #SEGTYPE_FLAG_X
+	beq 2f
+	cmp r1, #0
+	blt 3f
+	bal 1f
+2:	cmp r1, #0
+	bgt 3f
+
+1:	bal 8f
+
+3:
+@
+
+<<Load segment coordinates>>= 
+	ldrh r0, [r12, #SEGRT_X1]
+	ldrh r1, [r12, #SEGRT_Y1]
+	ldrh r2, [r12, #SEGRT_X2]
+	ldrh r3, [r12, #SEGRT_Y2]
+
+@ We filter out segments which are definitely not colliding with the
+actor's bounding rectangle by the following test:
+
+\begin{tabular}{llcll}
+{\bf if} & $\min(x_a', x_b')$ & $<$ & $\max(x_a, x_b)$ & {\bf or} \\
+         & $\min(y_a', y_b')$ & $<$ & $\max(y_a, y_b)$ & {\bf then} \\
+         & no collision. & & & \\
+{\bf else} & & & & \\
+         & collision. & & & \\
+\end{tabular}
+
+To make this particularly fast, we overwrite some values during the
+check.  We reload them afterwards, if the rectangles do intersect.
+
+Be warned that this snippet, which is closely related to the screening
+code in [[physics_fill_seglist]], is notorious for having subtle errors.
+
+<<Screen segment by bounding rectangle>>= 
+	cmp r0, r2
+	eorgt r0, r0, r2
+	eorgt r2, r0, r2
+	eorgt r0, r0, r2
+	cmp r0, r4
+	movlt r0, r4
+	cmp r2, r6
+	movgt r2, r6
+	cmp r2, r0
+	blt 8f
+
+	cmp r1, r3
+	eorgt r1, r1, r3
+	eorgt r3, r1, r3
+	eorgt r1, r1, r3
+	cmp r1, r5
+	movlt r1, r5
+	cmp r3, r7
+	movgt r3, r7
+	cmp r3, r1
+	blt 8f
+
+	ldrh r0, [r12, #SEGRT_X1]
+	ldrh r1, [r12, #SEGRT_Y1]
+	ldrh r2, [r12, #SEGRT_X2]
+	ldrh r3, [r12, #SEGRT_Y2]
+
+@ We precalculate the segment's y intercept as follows:
+    \[ b = x_b' \cdot y_b - x_b \cdot y_b' \]
+Well, this is almost the segment's y intercept.  The actual intercept,
+$b'$, is:
+    \[ b' = \frac{b}{x_b - x_b'} \]
+
+<<Precalculate segment's y intercept>>= 
+	mul r8, r0, r3
+	rsb r8, r8, #0
+	mla r8, r2, r1, r8
+	str r8, [fp, #TMP_SEGB]
+
+@ We're about to look at actually checking the lines.  The tricky bit is
+the actual line intersection check, which we implement as a macro to
+reduce code duplication.  The initial collision response is also handled
+as a macro.  We'll leave those until after discussing the rest of the
+code involved.
+
+We handle each case in a sufficiently regular way that a macro may be
+used. The two parameters of the [[check_if_m]] macro are the conditions
+on $v_y$ if the check should continue, and on $v_x$ if the check should
+not continue, respectively.
+
+<<Macros>>= 
+.macro check_if_m ycond, xcond
+7:	ldrsh r9, [r10, #ACTRT_VY]
+	cmp r9, #0
+	\ycond 1f
+	ldrsh r9, [r10, #ACTRT_VX]
+	cmp r9, #0
+	\xcond 7f
+.endm
+
+@ We check the left edge of the actor's bounding rectangle, either if
+$v_y \neq 0$ or if $v_x < 0$.
+
+<<Check left edge of actor's bounding rectangle>>= 
+	check_if_m bne, bge
+	line_check_m r4, r5, r4, r7
+	collision_m left
+@ We check the right edge of the actor's bounding rectangle if $v_y \neq
+0$, or if $v_x > 0$.
+
+<<Check right edge of actor's bounding rectangle>>= 
+	check_if_m bne, ble
+	line_check_m r6, r5, r6, r7
+	collision_m right
+@ We check the upper edge if $v_x \neq 0$, or if $v_y < 0$.
+
+<<Check upper edge of actor's bounding rectangle>>= 
+	check_if_m blt, beq
+	line_check_m r4, r5, r6, r5
+	collision_m up
+@ We check the lower edge if $v_x \neq 0$, or if $v_y > 0$.
+
+<<Check lower edge of actor's bounding rectangle>>= 
+	check_if_m bgt, beq
+	line_check_m r4, r7, r6, r7
+	collision_m down
+@ Here's the line checking macro.  It's not as well reduced as it could
+be.  It's based on the following idea:
+
+\begin{eqnarray*}
+(a, b, c) & = & (y_a' - y_a, x_a - x_a',
+                 x_a' \cdot y_a - x_a \cdot y_a') \\
+r_{actor} & = & a \cdot x_b + b \cdot y_b + c \\
+r_{actor}' & = & a \cdot x_b' + b \cdot y_b' + c \\
+\end{eqnarray*}
+
+If $r_{actor} \not= 0$, $r_{actor}' \not= 0$, and $r_{actor}$ and
+$r_{actor}'$ have the same signs, then the lines do not intersect.
+We then check:
+
+\begin{eqnarray*}
+(a', b', c') & = & (y_b' - y_b, x_b - x_b',
+                    x_b' \cdot y_b - x_b \cdot y_b') \\
+r_{segment} & = & a' \cdot x_a + b' \cdot y_a + c' \\
+r_{segment}' & = & a' \cdot x_a' + b' \cdot y_a' + c' \\
+\end{eqnarray*}
+
+If $r_{segment} \not= 0$, $r_{segment}' \not= 0$, and $r_{segment}$ and
+$r_{segment}'$ have the same signs, then the lines do not intersect.
+The lines either intersect or are colinear if both tests fail.
+
+Now, the handy thing about all this is that there are some nice
+optimizations that can be made here as the actor's bounding rectangle is
+axis-aligned.
+
+Let's look at the first check.  It is always the case that either $a =
+0$ or $b = 0$.  So if [[\x1]] and [[\x2]] are the same register, we know
+that $b = 0$ and we check $a \cdot x_b + c$ and $a \cdot x_b' + c$.
+
+<<Macros>>= 
+.macro line_check_m x1, y1, x2, y2
+.ifc \x1, \x2
+1:	sub r12, \y2, \y1
+	mul r9, \x1, r12
+	rsb r9, r9, #0
+
+	mlas r8, r0, r12, r9
+	beq 2f
+	mlas r9, r2, r12, r9
+	beq 2f
+@ Otherwise, we know that [[\y1]] and [[\y2]] must the same register,
+and $a = 0$.  So we check $b \cdot y_b + c$ and $b \cdot y_b' + c$.
+
+<<Macros>>= 
+.else
+1:	sub r12, \x2, \x1
+	mul r9, \y1, r12
+	mul r8, r1, r12
+	rsb r8, r8, #0
+	adds r8, r8, r9
+	beq 2f
+	mul r12, r3, r12
+	rsb r12, r12, #0
+	adds r9, r12, r9
+	beq 2f
+.endif
+	teq r8, r9
+	bge 7f
+@ Take note of the optimizations above where a multiplication by a
+negative {\bf Rs} is replaced with a multiplication by a positive {\bf
+Rs} and then [[rsb]]'d.  This saves some significant cycles in these
+cases.
+
+Now, for the second part of the check, either $a' \cdot x_a = a' \cdot
+x_a'$ or $b' \cdot y_a = b' \cdot y_a'$.
+
+<<Macros>>= 
+.ifc \x1,\x2
+2:	sub r9, r2, r0
+	mul r9, \y2, r9
+	rsb r9, r9, #0
+	sub r12, r3, r1
+	mla r8, \x1, r12, r9
+.else
+2:	sub r9, r3, r1
+	mul r9, \x2, r9
+	sub r8, r2, r0
+	mul r8, \y1, r8
+	rsb r8, r8, #0
+	add r8, r8, r9
+.endif
+@ The second part of this check is the same for all line cases.  We note
+that $c'$ has been precalculated, and stored in {\bf fp}+[[#TMP_SEGB]].
+
+<<Macros>>= 
+	ldr r12, [fp, #TMP_SEGB]
+	adds r8, r8, r12
+	beq 3f
+
+	sub r9, r2, r0
+	mul r9, \y1, r9
+	rsb r9, r9, #0
+	add r9, r9, r12
+	sub r12, r3, r1
+	mlas r9, \x1, r12, r9
+	beq 3f
+
+	teq r8, r9
+	bge 7f
+.endm
+@ Beware of the case where the lines are colinear!  This is generally
+screened out by the bounding rectangle check, but it is worth noting
+here.  This line collision algorithm cannot be reused without the
+bounding rectangle check beforehand.
+
+
+\section{Collision Response}
+
+If there is a collision, we determine what kind of collision it is and
+how to respond to it.
+
+Different parts of the actor's bounding rectangle are only allowed to
+collide with walls or floors when the velocities are appropriate.  We
+also only select lines with certain slopes (this could use some
+refinement).
+
+First we check if this is a fatal segment, and just haphazardly disable
+the actor's alive flag.  We then check for a painful segment, and call a
+damage handler if appopriate.  This is likely the change a bit.
+XXX this is depressingly long.
+
+<<Macros>>= 
+.macro collision_m type
+3:	ldrh r9, [r14, #-2]
+	ldr r12, =linebank
+	ldr r12, [r12]
+	add r9, r9, r9, lsl #1
+	add r12, r12, r9, lsl #2
+	ldrb r9, [r12, #SEGRT_TYPE]
+	tst r9, #SEGTYPE_FLAG_FATAL
+	ldrneb r9, [r10, #ACTRT_FLAGS]
+	bicne r9, r9, #ACTRT_FLAG_ALIVE
+	strneb r9, [r10, #ACTRT_FLAGS]
+
+        tst r9, #SEGTYPE_FLAG_PAINFUL
+        beq 3f
+        stmfd sp!, {r0-r3}
+        ldrh r2, [r10, #ACTRT_TYPE]
+        mov r2, r2, lsl #1
+        ldr r3, =archetype_table
+        ldrh r2, [r3, r2]
+        add r3, r3, r2, lsl #2
+        add r3, r3, #7
+        ldrb r2, [r3], #1
+        add r3, r3, r2, lsl #3
+        ldr r9, [r3, #16]
+        mov r0, #0xff
+        mov r1, #DAMAGE_ENVIRONMENT
+        mov r2, r10
+        ldrb r3, [r12, #SEGRT_FRICTION]
+        cmp r9, #0
+        movne lr, pc
+        movne pc, r9
+        ldmfd sp!, {r0-r3}
+        bal 7f
+3:
+
+@ Now we test for a collision with a horizontal normal (floor).
+
+<<Macros>>= 
+	ldrsh r9, [r10, #ACTRT_VY]
+	cmp r9, #0
+.ifc \type, left
+	@ if v_y /= 0
+	beq 4f
+	@subs r8, r3, r1
+	@beq 4f
+.endif
+.ifc \type, right
+	@ if v_y /= 0
+	beq 4f
+	@subs r8, r3, r1
+	@beq 4f
+.endif
+.ifc \type, up
+	@ if v_y < 0
+	bge 4f
+.endif
+.ifc \type, down
+	@ if v_y > 0
+	ble 4f
+.endif
+	subs r8, r2, r0
+	beq 4f
+
+	ldrsh r9, [r10, #ACTRT_VY]
+	cmp r9, #0
+
+	movlt r8, #0
+	strlth r8, [r10, #ACTRT_VY]
+ @        blt 7f
+        ldrgth r8, [r14, #-2]
+        strgth r8, [fp, #TMP_FLOOR]
+
+ @.ifc \type, down
+ @	ldrh r8, [r14, #-2]
+ @	strh r8, [fp,#TMP_FLOOR]
+ @.else
+ @       cmp r3, r1
+ @	ldrneh r8, [r14, #-2]
+ @	strneh r8, [fp,#TMP_FLOOR]
+        @moveq r8, #0
+        @streqh r8, [r10, #ACTRT_VY]
+ @.endif
+	bal 7f
+@
+
+Here we test for collision with a vertical normal (wall).
+
+<<Macros>>= 
+4:	ldrsh r9, [r10, #ACTRT_VX]
+	cmp r9, #0
+.ifc \type, left
+	@ if v_x < 0
+	bge 7f
+.endif
+.ifc \type, right
+	@ if v_x > 0
+	ble 7f
+.endif
+.ifc \type, up
+	@ if v_x /= 0
+	@beq 7f
+	bal 7f
+.endif
+.ifc \type, down
+	@ if v_x /= 0
+	@beq 7f
+	bal 7f
+.endif
+	subs r8, r3, r1
+        beq 7f
+
+	ldrh r8, [r14, #-2]
+	strh r8, [fp,#TMP_WALL]
+.endm
+@
+
+The final aspects of collision are settled outside the segment collision
+detection loop.
+
+
+\section{Angle of slope}
+
+This macro takes a type, which is either ``velocity'' or ``position'',
+depending on what kind of output it wants.  It assumes that the code to
+handle interesting slopes immediately follows the macro call, while any
+code in the case of simple slopes occurs at label {\bf 7f}.
+
+In determining the angle of the slope of the floor, we need to be aware
+that certain cases are extremely common and should be dealt with
+specially.
+
+First, we eradicate lines at right angles from the axes.  A vertical
+line will have $\Delta x = 0$.  We don't really have anything to do in
+the case that a floor is vertical -- technically, shouldn't this be an
+error?
+
+<<Macros>>= 
+.macro determine_angle_m type
+	ldrh r0, [r12, #SEGRT_X1]
+	ldrh r1, [r12, #SEGRT_X2]
+	subs r0, r1, r0
+.ifc \type, velocity
+.else
+	moveq r1, #0
+	moveq r0, #0x1000
+.endif
+	beq 7f
+@
+
+If $\Delta y = 0$, then the line is parallel to the horizontal axis.
+
+<<Macros>>= 
+	ldrh r2, [r12, #SEGRT_Y1]
+	ldrh r3, [r12, #SEGRT_Y2]
+	subs r1, r3, r2
+.ifc \type, velocity
+	addeq r6, r6, r4
+	addeq r7, r7, r5
+.else
+	moveq r1, #0x1000
+	moveq r0, #0x0
+.endif
+	beq 7f
+
+@ The last special case is that where $|\Delta x| = |\Delta y|$, when
+the slope is equal to 1 or -1.  If this is the case, we preload \reg0
+and \reg1 with the appropriate angles, otherwise we call [[atan2]] to
+get the angle.
+
+<<Macros>>= 
+	movs r2, r0
+	rsblt r2, r2, #0
+	movs r3, r1
+	rsblt r3, r3, #0
+	cmp r2, r3
+	movne r0, r2
+	movne r1, r3
+	bne 1f
+
+@ So, $m = 1$ or $m = -1$, depending on whether the signs of \reg0 and
+\reg1 are the same or not.  We special case these slopes to $\frac{7
+\cdot \pi}{4}$ and $\frac{\pi}{4}$ respectively.
+
+<<Macros>>= 
+	teq r0, r1
+	movge r0, #32+192
+	movlt r0, #32
+	bal 2f
+
+@ Otherwise, arctan.
+
+The transform after [[atan2]] is worth noting.  We are seeking to
+transform any angle returned by it into either the first or fourth
+quadrant.
+
+<<Macros>>= 
+1:	bl atan2
+
+	bic r0, r0, #128
+	tst r0, #64
+	bicne r0, r0, #64
+	orreq r0, r0, #128
+	orreq r0, r0, #64
+
+@ Finally, set things up to get the sine and cosine values from the
+angle.
+
+<<Macros>>= 
+2:	add r1, r0, #64		    @ cosine -> pi/2 shift of sine
+	and r0, r0, #255	    @ \ circular wrap-around on theta
+	and r1, r1, #255	    @ /
+	mov r0, r0, lsl #1
+	mov r1, r1, lsl #1
+
+	ldr r8, =sine_lut
+	ldrsh r0, [r8, r0]	    @ sin
+	ldrsh r1, [r8, r1]	    @ cos
+.endm
+@
+\section{Safety Scan}
+
+The ``safety scan'' routine is responsible for determining if an actor
+can safely switch dimensions.  Specifically, given an actor and a
+segment tree, our responsibility is to determine whether the actor is
+penetrating an ``unsafe'' zone or not.
+
+The two major components of this routine are the intersection check, and
+the inclusion check.  We perform intersection first as it is marginally
+cheaper to test than inclusion.  It is left as an exercise to the reader
+to prove that these two checks are both necessary and sufficient.
+
+Dynamic segments should also be considered, but at the moment they are
+ignored. (XXX)
+
+If either of the two checks needs to exit immediately, it branches to
+label 9 with the successful return code (1) in \reg0.  Otherwise, we
+return failure (0).
+
+<<Constants>>= 
+.equ TMP_SEGTREE, -48
+<<ARM Routines in IWRAM>>= 
+        .global safety_scan
+safety_scan:
+	mov ip, sp
+	stmfd sp!, {r4-r10,fp,ip,lr}
+	mov fp, ip
+        sub sp, sp, #24
+
+	mov r10, r0
+        str r1, [fp, #TMP_SEGTREE]
+
+        <<safety scan: Intersection check>>
+        ldr r1, [fp, #TMP_SEGTREE]
+        <<safety scan: Inclusion check>>
+        mov r0, #0
+9:      ldmea fp, {r4-r10,fp,sp,pc}
+
+@
+\subsection{Intersection}
+
+This portion of the check looks for segments in the ground polygon which
+are intersecting the segments of the actor's bounding box.
+
+Intersection is detected in much the same way as it is in
+[[physics_individual]].  We walk the segment tree to obtain the segments
+within the bounding box of the actor, and then check each one for
+intersection.  If an intersection has occurred, we leave immediately.
+
+<<safety scan: Intersection check>>= 
+        <<safety scan intersection: Fill segment list>>
+        ldr r14, =seglist
+        ldrh r9, [r14], #2
+        cmp r9, #0
+        beq 10f
+
+        ldrh r4, [r10, #ACTRT_X]
+        ldrh r5, [r10, #ACTRT_Y]
+        <<Setup variables for collision>>
+
+0:      ldr r12, =linebank
+        ldr r12, [r12]
+        add r9, r9, r9, lsl #1
+        add r12, r12, r9, lsl #2
+
+        <<safety scan: Weed out irrelevent segments>>
+        <<Load segment coordinates>>
+        <<Screen segment by bounding rectangle>>
+        <<Precalculate segment's y intercept>>
+        <<safety scan intersection: Check for intersection>>
+
+8:      ldrh r9, [r14], #2
+        cmp r9, #0
+        bne 0b
+
+10:
+
+@ We only need the immediate area of the actor's bounding box for this
+check.
+
+<<safety scan intersection: Fill segment list>>=
+	mov r0, r1
+
+	ldrh r1, [r10, #ACTRT_X]
+	ldrh r3, [r10, #ACTRT_Y]
+
+	ldrsb r2, [r10, #ACTRT_CLIPXOFF]
+	add r1, r1, r2
+	ldrb r5, [r10, #ACTRT_CLIPW]
+	add r2, r1, r5
+
+	ldrsb r4, [r10, #ACTRT_CLIPYOFF]
+	add r3, r3, r4
+	ldrb r5, [r10, #ACTRT_CLIPH]
+	add r4, r3, r5
+
+	ldr r5, =seglist
+
+	stmfd sp!, {r10,r12,lr}
+	bl physics_fill_seglist_iw
+	ldmfd sp!, {r10,r12,lr}
+
+@ As we walk the list of segments, we screen out segments which are not
+relevent for defining the ground polygon.
+
+<<safety scan: Weed out irrelevent segments>>= 
+        ldrb r0, [r12, #SEGRT_TYPE]
+        tst r0, #SEGTYPE_FLAG_PASS
+        bne 8f
+        tst r0, #SEGTYPE_FLAG_PAINFUL
+        bne 8f
+        tst r0, #SEGTYPE_FLAG_FATAL
+        bne 8f
+@
+
+<<safety scan intersection: Check for intersection>>= 
+        line_check_m r4, r5, r4, r7
+        bal 3f
+7:      line_check_m r6, r5, r6, r7
+        bal 3f
+7:      line_check_m r4, r5, r6, r5
+        bal 3f
+7:      line_check_m r4, r7, r6, r7
+
+3:      mov r0, #1
+        bal 9f
+
+7:
+
+@
+\subsection{Inclusion}
+
+We approach inclusion from the point of view that our actor is inside an
+invalid area if any of the four corners of the actor's bounding box are
+within such an area.
+
+To detect this condition, we will basically cast rays from each of the
+actor's four corners, counting the number of times we cross a boundry
+which defines a polygon.  Inuitively, we can see that if the any of
+these numbers is odd, we are inside a polygon.
+
+The specifics of this implementation which make it fast are that the
+segment tree can be walked simply with half the vertical elimination
+code removed to get all the segments above the actor.  At this point, we
+can simply check each of these segments to determine whether is it above
+or below each of the four points, and update the crossing values
+appropriately.
+
+<<safety scan: Inclusion check>>= 
+        <<safety scan inclusion: Fill seglist>>
+
+        mov r8, #0
+
+        ldr r14, =seglist
+        ldrh r9, [r14], #2
+        cmp r9, #0
+        moveq r0, #0
+        beq 9f
+
+        ldrh r4, [r10, #ACTRT_X]
+        ldrh r5, [r10, #ACTRT_Y]
+	ldrsb r2, [r10, #ACTRT_CLIPXOFF]
+	add r4, r4, r2
+	ldrsb r2, [r10, #ACTRT_CLIPYOFF]
+	add r5, r5, r2
+	ldrb r6, [r10, #ACTRT_CLIPW]
+	ldrb r7, [r10, #ACTRT_CLIPH]
+
+0:      ldr r12, =linebank
+        ldr r12, [r12]
+        add r9, r9, r9, lsl #1
+        add r12, r12, r9, lsl #2
+
+        <<safety scan: Weed out irrelevent segments>>
+        ldrh r0, [r12, #SEGRT_X1]
+        ldrh r1, [r12, #SEGRT_Y1]
+        ldrh r2, [r12, #SEGRT_X2]
+        ldrh r3, [r12, #SEGRT_Y2]
+
+        <<safety scan: Check top left point for crossing>>
+        <<safety scan: Check top right point for crossing>>
+        <<safety scan: Check bottom right point for crossing>>
+        <<safety scan: Check bottom left point for crossing>>
+2:
+
+8:      ldrh r9, [r14], #2
+        cmp r9, #0
+        bne 0b
+
+        mov r0, #1
+        tst r8, #1
+        bne 9f
+        tst r8, #2
+        bne 9f
+        tst r8, #4
+        bne 9f
+        tst r8, #8
+        bne 9f
+
+        mov r0, #0
+
+@ Right now, to avoid repeating the seglist fill code for this, we just
+ask for the range of the bounding box but with the lower Y bound being
+zero.  We may want to change this and approach it in a different way
+(walking the seglist and checking on the fly) if we find an area where
+this is too slow or generates too many segments.
+
+We have an additional difficulty here, as we cannot stand to have any
+duplicates.  Thus, we sort the segment list in place to filter out
+duplicates.  I was hoping to simply use a hash table to filter out
+duplicates, but this initially appears to have a lot more work involved.
+XXX Hopefully this will change -- a linear probing scheme with double
+hashing as discussed in TAOCP 6.4 would probably be great.
+
+<<safety scan inclusion: Fill seglist>>= 
+	mov r0, r1
+
+	ldrh r1, [r10, #ACTRT_X]
+	ldrh r3, [r10, #ACTRT_Y]
+
+	ldrsb r2, [r10, #ACTRT_CLIPXOFF]
+	add r1, r1, r2
+	ldrb r5, [r10, #ACTRT_CLIPW]
+	add r2, r1, r5
+
+	ldrsb r4, [r10, #ACTRT_CLIPYOFF]
+	add r3, r3, r4
+	ldrb r5, [r10, #ACTRT_CLIPH]
+	add r4, r3, r5
+        mov r3, #0
+
+	ldr r5, =seglist
+
+	stmfd sp!, {r10,r12,lr}
+	bl physics_fill_seglist_iw
+	ldmfd sp!, {r10,r12,lr}
+
+        ldr r0, =seglist
+        mov r1, #0                  @ j
+        mov r2, #0                  @ i
+0:      ldrh r4, [r0, r2]
+        cmp r4, #0
+        beq 4f
+        mov r3, #0                  @ k
+        @ for k = 0; k < i; k++
+1:      cmp r3, r2
+        bge 2f
+        ldrh r5, [r0, r3]
+        cmp r4, r5
+        beq 3f
+        add r3, r3, #2
+        bal 1b
+
+2:      cmp r2, r1
+        strneh r4, [r0, r1]
+        add r1, r1, #2
+
+3:      add r2, r2, #2
+        bal 0b
+
+4:      strh r4, [r0, r1]
+@
+
+<<safety scan: Check top left point for crossing>>= 
+        sub r0, r0, r4
+        sub r1, r1, r5
+        sub r2, r2, r4
+        sub r3, r3, r5
+
+        cmp r0, #0
+        bgt 1f
+
+        cmp r2, #0
+        bgt 3f
+        bal 2f
+
+1:      cmp r2, #0
+        bgt 2f
+
+3:      sub r12, r2, r0
+        mul r9, r0, r3
+        rsb r9, r9, #0
+        mla r9, r2, r1, r9
+        sub r9, r9, r12
+        cmp r9, r12
+        eorle r8, r8, #1
+@
+
+<<safety scan: Check top right point for crossing>>= 
+2:      bal 8f
+2:      sub r0, r0, r6
+        sub r2, r2, r6
+
+        cmp r0, #0
+        bge 1f
+        cmp r2, #0
+        bge 3f
+        bal 2f
+1:      cmp r2, #0
+        bge 2f
+
+3:      subs r12, r2, r0
+        beq 2f
+        rsblt r12, r12, #0
+        mul r9, r0, r3
+        rsb r9, r9, #0
+        mla r9, r2, r1, r9
+        sub r9, r9, r12
+        cmp r9, r12
+        eorle r8, r8, #2
+@
+
+<<safety scan: Check bottom right point for crossing>>= 
+2:      sub r1, r1, r7
+        sub r3, r3, r7
+
+        cmp r0, #0
+        bge 1f
+        cmp r2, #0
+        bge 3f
+        bal 2f
+1:      cmp r2, #0
+        bge 2f
+
+3:      subs r12, r2, r0
+        beq 2f
+        rsblt r12, r12, #0
+        mul r9, r0, r3
+        rsb r9, r9, #0
+        mla r9, r2, r1, r9
+        sub r9, r9, r12
+        cmp r9, r12
+        eorle r8, r8, #4
+@
+
+<<safety scan: Check bottom left point for crossing>>= 
+2:      add r0, r0, r6
+        add r2, r2, r6
+
+        cmp r0, #0
+        bge 1f
+        cmp r2, #0
+        bge 3f
+        bal 2f
+1:      cmp r2, #0
+        bge 2f
+
+3:      subs r12, r2, r0
+        beq 2f
+        rsblt r12, r12, #0
+        mul r9, r0, r3
+        rsb r9, r9, #0
+        mla r9, r2, r1, r9
+        sub r9, r9, r12
+        cmp r9, r12
+        eorle r8, r8, #8
+@
+
+\end{document}
+
+% EOF physics.nws

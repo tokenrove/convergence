@@ -1,0 +1,118 @@
+
+levels = [glob "levels/\[^C\]*"];
+
+/* Sanitation needs two merged tilesets. */
+levels/sanitation/alpha_mgpg.tiles levels/sanitation/alpha_mg.map
+levels/sanitation/alpha_pg.map: levels/sanitation/alpha_mg.pcx
+	levels/sanitation/alpha_pg.pcx
+{
+    [mortimer] -P -m [target] [need];
+}
+
+levels/sanitation/beta_mgpg.tiles levels/sanitation/beta_mg.map
+levels/sanitation/beta_pg.map: levels/sanitation/beta_mg.pcx
+	levels/sanitation/beta_pg.pcx
+{
+    [mortimer] -P -m [target] [need];
+}
+
+
+/* Crygenics has one big merged tileset for each side. */
+levels/cryo/alpha_all.tiles levels/cryo/alpha_ov.map
+levels/cryo/alpha_fg.map levels/cryo/alpha_bg.map: levels/cryo/alpha_ov.pcx
+	levels/cryo/alpha_fg.pcx levels/cryo/alpha_bg.pcx
+{
+    [mortimer] -P -m [target] [need];
+}
+
+levels/cryo/beta_all.tiles levels/cryo/beta_ov.map
+levels/cryo/beta_fg.map levels/cryo/beta_bg.map: levels/cryo/beta_ov.pcx
+	levels/cryo/beta_fg.pcx levels/cryo/beta_bg.pcx
+{
+    [mortimer] -P -m [target] [need];
+}
+
+
+/* Cryolab needs to merge it's fg and ov in order to stay out of the 
+   way of Cold Storage's multitudes of tiles. */
+levels/c_boss/alpha_fgov.tiles levels/c_boss/alpha_fg.map
+levels/c_boss/alpha_ov.map: levels/c_boss/alpha_fg.pcx
+	levels/c_boss/alpha_ov.pcx
+{
+    [mortimer] -P -m [target] [need];
+}
+levels/c_boss/beta_fgov.tiles levels/c_boss/beta_fg.map
+levels/c_boss/beta_ov.map: levels/c_boss/beta_fg.pcx
+	levels/c_boss/beta_ov.pcx
+{
+    [mortimer] -P -m [target] [need];
+}
+
+
+/* The zoo combines fg and mg into 'fm' tileset for optimizing */
+levels/zoo/alpha_fm.tiles levels/zoo/alpha_ov.map
+levels/zoo/alpha_fg.map: levels/zoo/alpha_ov.pcx
+	levels/zoo/alpha_fg.pcx
+{
+    [mortimer] -P -m [target] [need];
+}
+
+levels/zoo/beta_fm.tiles levels/zoo/beta_ov.map
+levels/zoo/beta_fg.map: levels/zoo/beta_ov.pcx
+	levels/zoo/beta_fg.pcx 
+{
+    [mortimer] -P -m [target] [need];
+}
+
+
+
+/* The Vehicle yard combines fg and mg into 'lev' tileset for optimizing */
+levels/vehicle/alpha_lev.tiles levels/vehicle/alpha_mg.map
+levels/vehicle/alpha_fg.map: levels/vehicle/alpha_mg.pcx
+	levels/vehicle/alpha_fg.pcx
+{
+    [mortimer] -P -m [target] [need];
+}
+
+levels/vehicle/beta_lev.tiles levels/vehicle/beta_mg.map
+levels/vehicle/beta_fg.map: levels/vehicle/beta_mg.pcx
+	levels/vehicle/beta_fg.pcx 
+{
+    [mortimer] -P -m [target] [need];
+}
+
+
+/* The cryolab groups two forground layers */
+levels/cryolab/alpha_tp.tiles levels/cryolab/alpha_tr.map
+levels/cryolab/alpha_ov.map: levels/cryolab/alpha_tr.pcx
+	levels/cryolab/alpha_ov.pcx
+{
+    [mortimer] -P -m [target] [need];
+}
+
+levels/cryolab/beta_tp.tiles levels/cryolab/beta_tr.map
+levels/cryolab/beta_ov.map: levels/cryolab/beta_tr.pcx
+	levels/cryolab/beta_ov.pcx 
+{
+    [mortimer] -P -m [target] [need];
+}
+
+
+/* The genetics lab groups two forground layers */
+levels/genetics/alpha_mid.tiles levels/genetics/alpha_mg.map
+levels/genetics/alpha_bg.map: levels/genetics/alpha_mg.pcx
+	levels/genetics/alpha_bg.pcx
+{
+    [mortimer] -P -m [target] [need];
+}
+
+levels/genetics/beta_mid.tiles levels/genetics/beta_mg.map
+levels/genetics/beta_bg.map: levels/genetics/beta_mg.pcx
+	levels/genetics/beta_bg.pcx 
+{
+    [mortimer] -P -m [target] [need];
+}
+
+
+data_src += [patsubst %0% %0%/%.s [levels]];
+

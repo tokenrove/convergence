@@ -1,0 +1,56 @@
+#!Rosegarden
+#
+#  Musical Notation File
+#
+
+RV21
+
+
+Staves 3
+
+
+Name Staff 1
+Clef
+	Clef Name Treble
+Key
+	Key Name F  maj / D  min
+End
+
+Name Staff 2
+Clef
+	Clef Name Alto  
+Key
+	Key Name F  maj / D  min
+End
+
+Name Staff 3
+Clef
+	Clef Name Bass  
+Key
+	Key Name F  maj / D  min
+: Crotchet 0 1 -1 0 0 "d"
+: Crotchet 0 1 6 0 0 "d"
+: Crotchet 0 1 6 1 0 "d#"
+: Crotchet 0 1 6 4 0 "d"
+: Crotchet 0 1 2 0 0 "g"
+: Crotchet 0 1 6 0 0 "d"
+: Crotchet 0 1 1 0 0 "f"
+: Crotchet 0 1 6 0 0 "d"
+: Crotchet 0 1 -1 0 0 "d"
+: Crotchet 0 1 6 0 0 "d"
+: Crotchet 0 1 6 1 0 "d#"
+: Crotchet 0 1 6 4 0 "d"
+: Crotchet 0 1 5 0 0 "c"
+: Crotchet 0 1 4 2 0 "bb"
+: Crotchet 0 1 3 0 0 "a"
+: Crotchet 0 1 2 0 0 "g"
+End
+
+Bar 0 0 time 4 4
+Bar 1 0 time 4 4
+Bar 2 0 time 4 4
+Stave 0 tags 1 1 connected 0 program 0
+Stave 1 tags 1 1 connected 0 program 0
+Stave 2 tags 1 1 connected 0 program 0
+
+End

@@ -1,0 +1,50 @@
+
+
+ocamloptflags = -I tools ;
+
+mltools = tools/mortimer tools/roz tools/lbs2heft tools/heft2lbs
+    tools/lns2pgm tools/lns2lnd tools/pcx2lns;
+all += [mltools] tools/nancy tools/lns2poly;
+
+tools/mortimer_objs = tools/pcx.cmx tools/tile.cmx tools/mortimer.cmx;
+dot_clean += [tools/mortimer_objs];
+tools/mortimer: [tools/mortimer_objs];
+
+tools/roz_objs = tools/pcx.cmx tools/tile.cmx tools/roz.cmx;
+dot_clean += [tools/roz_objs];
+tools/roz: [tools/roz_objs];
+
+tools/pcx2lns_objs = tools/pcx.cmx tools/pcx2lns.cmx;
+dot_clean += [tools/pcx2lns_objs];
+tools/pcx2lns: [tools/pcx2lns_objs];
+
+tools/heft2lbs_objs = tools/heft2lbs.cmx;
+tools/lbs2heft_objs = tools/lbs2heft.cmx;
+
+tools/lns2pgm_objs = /usr/lib/ocaml/str.cmxa tools/lns2pgm.cmx;
+dot_clean += tools/lns2pgm.cmx;
+tools/lns2pgm: [tools/lns2pgm_objs]
+{
+    ocamlopt -o [target] [[target]_objs];
+}
+
+tools/lns2lnd_objs = /usr/lib/ocaml/str.cmxa tools/lns2lnd.cmx;
+dot_clean += tools/lns2lnd.cmx;
+tools/lns2lnd: [tools/lns2lnd_objs]
+{
+    ocamlopt -o [target] [[target]_objs];
+}
+
+tools/nancy_objs = tools/nancy.ho;
+dot_clean += [tools/nancy_objs];
+tools/nancy: [tools/nancy_objs];
+
+tools/lns2poly_objs = tools/lns2poly.ho;
+dot_clean += [tools/lns2poly_objs];
+tools/lns2poly: [tools/lns2poly_objs];
+
+tool_src = [glob "tools/*.ml"];
+#include-cooked-nowarn [fromto %0%.ml %0.%.ml.d [tool_src]]
+#include-cooked-nowarn [fromto %0%.mli %0.%.mli.d [glob "tools/*.mli"]]
+
+/* EOF tools/Cookbook */

@@ -1,0 +1,146 @@
+% math -- watch pi.
+%
+%
+% $Id: math.nws,v 1.2 2002/11/22 11:56:46 tek Exp $
+
+This module (math) provides all sorts of miscellaneous math functions or
+tables that don't really belong anywhere else.  The [[slut]] data module
+is also a part of this, but we keep it seperate as there is nothing more
+to really say about it.
+
+\section{atan2}
+
+Computing the arc tangent precisely would be quite expensive, so we use
+an approximation found in Graphics Gems volume II, page 389.  The heart
+of this approximation is
+    \[ m,n = \min,\max (|x|,|y|) \]
+    \[ \theta = o + \frac{m}{n} \]
+where $o$ is the octant in which the angle lies.
+
+To avoid performing the division, we keep a table of reciprocals for the
+values from 2 to 255 in ROM.  The single division required for any case
+is then replaced with a multiplication by the reciprocal of the divisor.
+
+As this could be kind of repetitive, we create a macro which handles a
+typical case upon which each can be based.  Each instance of the macro
+handles two of the eight cases.
+
+All we have to do is determine which octant to use as the divisor, of
+the two octants provided.  We compare the x and y, load up the
+appropriate reciprocal, and perform the multiplication.
+
+<<Macros>>= 
+.macro atan2_core oct1, oct2
+	cmp r0, r1
+
+	subgt r0, r0, #2
+	movgt r0, r0, lsl #1
+	ldrgth r0, [r2, r0]
+
+	sublt r1, r1, #2
+	movlt r1, r1, lsl #1
+	ldrlth r1, [r2, r1]
+
+	mul r0, r1, r0
+
+@ After this multiplication, we're left with a 16.16 fixed point
+fraction of the angle, so we need to convert it both into the range
+0-32, and remove the fractional portion.  We do a shift right by eleven
+bits to do both, which is equivalent to multiplying by 32 and dividing
+by 65536.
+
+<<Macros>>= 
+	mov r0, r0, asr #11
+
+@ Finally, we make any final adjustments based on the octant.
+
+<<Macros>>= 
+.if (\oct1 % 2)
+	rsbgt r0, r0, #0x100
+.endif
+.if (\oct2 % 2)
+	rsblt r0, r0, #0x100
+.endif
+.if \oct1
+	addgt r0, r0, #\oct1*32
+.endif
+.if \oct2
+	addlt r0, r0, #\oct2*32
+.endif
+	bal sagoth
+.endm
+
+@ Thanks to this [[atan2_core]] macro, the actual body of [[atan2]] is
+quite simple.  We now need only determine which octants the angle might
+lie in.
+
+{\bf void} {\tt atan2}({\it x}, {\it y}) --- {\it x} and {\it y} must
+not be zero.
+
+<<ARM Routines in IWRAM>>= 
+	.global atan2
+atan2:
+	@ XXX determine max precision, shift constant
+	ldr r2, =abort_lr
+	cmp r0, #0xff
+	movgt pc, r2
+	cmp r1, #0xff
+	movgt pc, r2
+
+	ldr r2, =recip_table
+
+	cmp r0, #0
+	blt 1f
+	cmp r1, #0
+	blt 0f
+	atan2_core 0, 1		    @ Both x and y >= 0
+0:	rsb r1, r1, #0
+	atan2_core 7, 6		    @ x >= 0, y < 0
+1:	rsb r0, r0, #0
+	cmp r1, #0
+	blt 2f
+	atan2_core 3, 2		    @ x < 0, y >= 0
+2:	rsb r1, r1, #0
+	atan2_core 4, 5		    @ x < 0, y < 0
+sagoth: bx lr
+@
+
+
+This reciprocal table was generated for [[atan2]], but is now used
+fairly widely.  It is a table of 16.16 fixed point fractions, starting
+from $\frac{1}{2}$, and goes up to $\frac{1}{255}$.  Remember: to get
+the appropriate reciprocal for some value $x$, index the table at $2
+\cdot (x - 2)$.
+
+<<Read-only data>>= 
+	.global recip_table
+recip_table:
+.hword 0x8000, 0x5555, 0x4000, 0x3333, 0x2aaa, 0x2492, 0x2000, 0x1c71, 0x1999
+.hword 0x1745, 0x1555, 0x13b1, 0x1249, 0x1111, 0x1000, 0xf0f, 0xe38, 0xd79
+.hword 0xccc, 0xc30, 0xba2, 0xb21, 0xaaa, 0xa3d, 0x9d8, 0x97b, 0x924, 0x8d3
+.hword 0x888, 0x842, 0x800, 0x7c1, 0x787, 0x750, 0x71c, 0x6eb, 0x6bc, 0x690
+.hword 0x666, 0x63e, 0x618, 0x5f4, 0x5d1, 0x5b0, 0x590, 0x572, 0x555, 0x539
+.hword 0x51e, 0x505, 0x4ec, 0x4d4, 0x4bd, 0x4a7, 0x492, 0x47d, 0x469, 0x456
+.hword 0x444, 0x432, 0x421, 0x410, 0x400, 0x3f0, 0x3e0, 0x3d2, 0x3c3, 0x3b5
+.hword 0x3a8, 0x39b, 0x38e, 0x381, 0x375, 0x369, 0x35e, 0x353, 0x348, 0x33d
+.hword 0x333, 0x329, 0x31f, 0x315, 0x30c, 0x303, 0x2fa, 0x2f1, 0x2e8, 0x2e0
+.hword 0x2d8, 0x2d0, 0x2c8, 0x2c0, 0x2b9, 0x2b1, 0x2aa, 0x2a3, 0x29c, 0x295
+.hword 0x28f, 0x288, 0x282, 0x27c, 0x276, 0x270, 0x26a, 0x264, 0x25e, 0x259
+.hword 0x253, 0x24e, 0x249, 0x243, 0x23e, 0x239, 0x234, 0x230, 0x22b, 0x226
+.hword 0x222, 0x21d, 0x219, 0x214, 0x210, 0x20c, 0x208, 0x204, 0x200, 0x1fc
+.hword 0x1f8, 0x1f4, 0x1f0, 0x1ec, 0x1e9, 0x1e5, 0x1e1, 0x1de, 0x1da, 0x1d7
+.hword 0x1d4, 0x1d0, 0x1cd, 0x1ca, 0x1c7, 0x1c3, 0x1c0, 0x1bd, 0x1ba, 0x1b7
+.hword 0x1b4, 0x1b2, 0x1af, 0x1ac, 0x1a9, 0x1a6, 0x1a4, 0x1a1, 0x19e, 0x19c
+.hword 0x199, 0x197, 0x194, 0x192, 0x18f, 0x18d, 0x18a, 0x188, 0x186, 0x183
+.hword 0x181, 0x17f, 0x17d, 0x17a, 0x178, 0x176, 0x174, 0x172, 0x170, 0x16e
+.hword 0x16c, 0x16a, 0x168, 0x166, 0x164, 0x162, 0x160, 0x15e, 0x15c, 0x15a
+.hword 0x158, 0x157, 0x155, 0x153, 0x151, 0x150, 0x14e, 0x14c, 0x14a, 0x149
+.hword 0x147, 0x146, 0x144, 0x142, 0x141, 0x13f, 0x13e, 0x13c, 0x13b, 0x139
+.hword 0x138, 0x136, 0x135, 0x133, 0x132, 0x130, 0x12f, 0x12e, 0x12c, 0x12b
+.hword 0x129, 0x128, 0x127, 0x125, 0x124, 0x123, 0x121, 0x120, 0x11f, 0x11e
+.hword 0x11c, 0x11b, 0x11a, 0x119, 0x118, 0x116, 0x115, 0x114, 0x113, 0x112
+.hword 0x111, 0x10f, 0x10e, 0x10d, 0x10c, 0x10b, 0x10a, 0x109, 0x108, 0x107
+.hword 0x106, 0x105, 0x104, 0x103, 0x102, 0x101
+
+@
+

@@ -1,0 +1,52 @@
+
+#
+# level description file -- genetics
+# Convergence
+# $Id: genetics.lvd,v 1.1 2002/12/06 13:59:28 retsyn Exp $
+#
+
+name genetics
+mode 0 
+tilesets 3
+alpha_palette levels/genetics/alpha_fg.pal
+beta_palette levels/genetics/beta_fg.pal
+line_bank levels/genetics/genetics.lnd
+alpha_segtree levels/genetics/alpha_sp.tree
+beta_segtree levels/genetics/beta_sp.tree
+
+###
+# Tilesets
+#
+
+ext_tileset medical_alpha_bg_tiles
+tileset alpha_mid { bank 2 file levels/genetics/alpha_mid.tiles }
+tileset alpha_fg { bank 3 file levels/genetics/alpha_fg.tiles }
+ext_tileset medical_beta_bg_tiles
+tileset beta_mid { bank 2 file levels/genetics/beta_mid.tiles }
+tileset beta_fg { bank 3 file levels/genetics/beta_fg.tiles }
+
+
+###
+# Layers
+#
+
+layer alpha_fg { width 378 height 26  tile_bank 3  priority 2
+    map_bank 0  scroll_speed 128  source levels/genetics/alpha_fg.map }
+layer alpha_mg { width 128 height 26  tile_bank 2  priority 3
+    map_bank 2  scroll_speed 100  source levels/genetics/alpha_mg.map  loop horizontal }
+layer alpha_bg { width 64  height 26  tile_bank 2  priority 3
+    map_bank 4  scroll_speed 80   source levels/genetics/alpha_bg.map  loop horizontal }
+ext_layer medical_alpha_bg_mrle
+layer beta_fg { width 378 height 26  tile_bank 3  priority 2
+    map_bank 5  scroll_speed 128  source levels/genetics/beta_fg.map }
+layer beta_mg { width 128 height 26  tile_bank 2  priority 3
+    map_bank 6  scroll_speed 100  source levels/genetics/beta_mg.map  loop horizontal }
+layer beta_bg { width 64  height 26  tile_bank 2  priority 3
+    map_bank 7  scroll_speed 80   source levels/genetics/beta_bg.map  loop horizontal }
+ext_layer medical_beta_bg_mrle
+
+
+###
+# Actors!
+#
+

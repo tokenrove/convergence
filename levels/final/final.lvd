@@ -1,0 +1,49 @@
+#
+# level description file -- final
+# Convergence
+# $Id: final.lvd,v 1.1 2002/12/06 18:52:50 retsyn Exp $
+#
+
+name final
+mode 0
+tilesets 2
+alpha_palette levels/final/alpha_fg.pal
+beta_palette levels/final/beta_fg.pal
+line_bank levels/final/final.lnd
+alpha_segtree levels/final/alpha_sp.tree
+beta_segtree levels/final/beta_sp.tree
+
+###
+# Tilesets
+#
+
+tileset alpha_fg { bank 2 file levels/final/alpha_fg.tiles }
+ext_tileset medical_alpha_bg_tiles
+tileset beta_fg { bank 2 file levels/final/beta_fg.tiles }
+ext_tileset medical_beta_bg_tiles
+
+
+###
+# Layers
+#
+
+layer alpha_fg { width 80 height 160  tile_bank 2  priority 2
+    map_bank 0  scroll_speed 128  source levels/final/alpha_fg.map }
+ext_layer medical_alpha_bg_mrle
+no_layer
+no_layer
+layer beta_fg { width 80 height 160  tile_bank 2  priority 2
+    map_bank 2  scroll_speed 128  source levels/final/beta_fg.map }
+ext_layer medical_beta_bg_mrle
+no_layer
+no_layer
+
+
+###
+# Actors
+#
+
+actor { type ARCH_TINYBOT  alpha beta  easy normal hard  blank_state 0
+    trigger 1  x 100 y 10 }
+
+# EOF final.lvd

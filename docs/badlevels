@@ -1,0 +1,50 @@
+Problems with some levels.
+
+    If a problem was "(REMEDIED)" Then something else changed to make
+it no longer an issue.
+    If a problem was "(FIXED)" Then design saved the day somehow by 
+altering the level content.
+    A * means a still present problem.
+
+(FIXED) Medical doorways (sideways ones) seem too small
+(REMEDIED) the side of the sanitation building is impossible to scale.
+(FIXED) Sliding part of sewers part 3 is too low
+(FIXED) The sliding part of the Cryo Storage is undoable.  Make more space.
+(FIXED) Swinging lights in office stage not climbable.
+(FIXED) Glass doesn't always hurt in Cryo storage.
+(FIXED) Slush not splined in cryolab
+(FIXED) Slush not splined in cryo boss zone.
+(FIXED) First cage in the Zoo impassable
+(FIXED) Zoo betaworld tiles display as garbage
+(FIXED) The sliding part of sewers part 3 needs a death segment
+(FIXED) Broken elevator in beta world of offices appears to be shut.
+(FIXED) Office alpha world has purple plants... PURPLE PLANTS!
+(FIXED) The sliding scenes in Cryo storage are displayed unlike they appear
+(FIXED) Can't enter genetics lab at all!
+(REMEDIED) Weird Roman column looking glass in the zoo in beta, around 1015, 776
+(FIXED) Exit doors in skywalk don't look useable.
+(FIXED) Office Jumps unreasonable
+(FIXED) First jump in the lights scene in offices a little cruel.
+(FIXED) Falling doesn't kill you in Quantum Grid.
+(FIXED) Falling doesn't kill you in Shifter bossfight.
+(REMEDIED) Can't see clouds very much in genetics stage.
+(FIXED) Defunct spline types exist in the sanitation stage.
+(REMEDIED) Defunct spline types exist in the rooftop 2 stage.
+(FIXED) Defunct spline types exist in the cryolab and cryoboss stages.
+(FIXED) Defunct spline types exist in the sewers.
+(FIXED) Glass in cryolab phase-jump scene on top shouldn't be.  Too hard.
+(REMEDIED) Garbage in commonly use cloud layer (medical, etc.)
+(FIXED) Final Climb has spikes you can't get past.
+(FIXED) Climb in roof1 won't be possible when safety scan is in
+(FIXED) Fade the fallen pillars in offices.
+(FIXED) Put in doors in office for Billy
+(FIXED) you can see player infront of that secretish ladder place in cold storage.
+(FIXED) Hole in first fence in vehicle yard not visible.
+(FIXED) Passable platform in Sanitation has ladder infront of it instead of behind.
+(FIXED) Slide-able shafts in Sanitation too high.
+(FIXED) Fore-ground tanks in Sanitation obscure vision too much.
+(FIXED) Falling doesn't kill you in final climb.
+(FIXED) More exciting area needed in cryolab for Quinn to explore.
+* at 1944 y 440 in the grid is an unreasonably placed ledge.
+* Culvern in icesewers between ice columns dissappears in beta.
+* Quinn can get out of medical and not get back in before rescuing everyone.

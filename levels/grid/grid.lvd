@@ -1,0 +1,51 @@
+#
+# level description file -- grid
+# Convergence
+# $Id: grid.lvd,v 1.4 2002/12/07 18:03:47 tek Exp $
+#
+
+name grid
+mode 0
+tilesets 3
+alpha_palette levels/grid/alpha_hg.pal
+beta_palette levels/grid/beta_hg.pal
+line_bank levels/grid/grid.lnd
+alpha_segtree levels/grid/alpha_sp.tree
+beta_segtree levels/grid/beta_sp.tree
+
+###
+# Tilesets
+#
+
+tileset alpha_fg { bank 1 file levels/grid/alpha_fg.tiles }
+tileset alpha_hg { bank 2 file levels/grid/alpha_hg.tiles global }
+ext_tileset quantum_alpha_bg_tiles
+tileset beta_fg { bank 1 file levels/grid/beta_fg.tiles }
+tileset beta_hg { bank 2 file levels/grid/beta_hg.tiles global }
+ext_tileset quantum_beta_bg_tiles
+
+
+###
+# Layers
+#
+
+layer alpha_fg { width 371 height 160  tile_bank 1  priority 3
+    map_bank 0  scroll_speed 128  source levels/grid/alpha_fg.map }
+layer alpha_hg { width 128 height 64   tile_bank 2  priority 3
+    map_bank 1  scroll_speed 110  source levels/grid/alpha_hg.map loop both global }
+ext_layer quantum_alpha_bg_mrle
+no_layer
+layer beta_fg { width 371 height 160  tile_bank 1  priority 3
+    map_bank 3  scroll_speed 128  source levels/grid/beta_fg.map }
+layer beta_hg { width 128 height 64   tile_bank 2  priority 3
+    map_bank 4  scroll_speed 110  source levels/grid/beta_hg.map loop both global }
+ext_layer quantum_beta_bg_mrle
+no_layer
+
+
+###
+# Actors
+#
+
+
+# EOF grid.lvd

@@ -1,0 +1,39 @@
+#!/usr/bin/env ruby
+#
+# mapunrle
+# a quicker hack to unRLE maps
+#
+# usage: mapunrle <map> <width in tiles>
+#
+# XXX should add support for alternating pairs
+#
+# $Id: mapunrle,v 1.2 2002/12/05 14:12:03 tek Exp $
+
+mapFile = File.open(ARGV[0], "r")
+width = ARGV[1].to_i
+foo = ARGV[0].sub("mrle","map2")
+outFile = File.open(foo, "w")
+offset = mapFile.read(2).unpack("V")[0]
+mapFile.seek(offset*2, 0)
+
+while !mapFile.eof? do
+    i = 0
+    mapFile.read(2*((width-1)/64))
+    while i < width do
+        x_orig = mapFile.read(2)
+        x = x_orig.unpack("v")[0];
+        count = 0
+        if (x&0xFE00) == 0xFE00 then
+            count = (x&(~0xFE00)) + 1
+            x_orig = mapFile.read(2)
+        else
+            count = 1
+        end
+        count.times { outFile.write x_orig }
+        i += count
+    end
+end
+
+exit 0
+
+# EOF mapunrle

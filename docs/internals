@@ -1,0 +1,370 @@
+
+---
+MODULE INDEX
+-----
+
+(+ indicates that the module has been converted to literate style)
+
+GAME-LEVEL
+
+actor	      + actor management subsystem.
+collision     + routines related to actor collision detection.
+ephemerals	transitory lightweight objects module.
+game	      + in-game subsystems.
+guard_act     + human and AI guard handlers, offsets.
+level		level (in-game state) management.
+main	      + main program marshal.
+offset		actor part offset calculators.
+osd	      + on-screen display driver.
+physics	      + it's one of those science things.
+primitive_ai  + simple AI handlers.
+sam		Sam's handlers.
+
+LOW-LEVEL
+
+alloc		General memory allocation module.
+assert		routines for debugging.
+dma		routines to harness hardware DMA. (see also dma.inc)
+dynpal	      + dynamic palette manager.
+font		quick render-to-vram font routines for debugging.
+fx	      + demo scene-esque effects and parlor tricks.
+gfx		low-level graphics routines.
+interrupt	hardware interrupt manager.
+layer	      + layers panning around.
+math	      + miscellaneous mathematical routines.
+music	      + music and sfx playback.
+random	      +	random number generation.
+sprite		hardware sprite management.
+start		GBA startup. (equivalent of crt0.o)
+text	      + layer-based graphics routines for menus.
+timer		hardware timer management.
+
+DATA
+
+archetypes	actor archetypes table.
+instruments     instrument banks.
+mxtable         music table.
+palettes	the master palette table.
+quests		character-specific quest data.
+slut		sine look-up table.
+
+
+It's arguable as to whether collision belongs in game-level or low-level
+modules, as it is more closely connected to sprite than it is to actor
+or ephemeral.
+
+
+---
+VOCABULARY
+-----
+
+Some common abbreviations or words used in the code:
+
+rt	    == runtime
+const	    == constant (read-only)
+idx	    == index
+ptr	    == pointer
+osd	    == on-screen display
+vbl	    == vertical blank
+vblank	    == vertical blank
+hblank	    == horizontal blank
+lut	    == look-up table
+oob	    == out of bounds
+
+
+actor
+    Any persistent, non-playfield in-game entity which is affected by
+    collision, physics, and clipping.  This includes the player
+    character.
+
+ephemeral
+    A short-lived sprite or visual effect which shares many of the
+    properties of an actor but which is too short lived to keep in the
+    actor pool.  Typically these are destroyed upon clipping off the
+    screen boundries.
+
+playfield
+    Effectively, everything on screen which is not an actor, an
+    ephemeral, or a part of the OSD.  This usually means the
+    backgrounds.  Often it refers specifically to the background area
+    defined by the segment map with which the player interacts.
+
+
+---
+POINTER REPRESENTATION AND OTHER CHEATING
+-----
+
+It should be noted that, first of all, almost any pointer is going to be
+word aligned, and so the bottom two bits can be used for other purposes,
+provided they are bic'd out before use as a pointer.  The exception is
+function pointers which might point to thumb routines, where the LSB is
+used to indicate the instruction set used.  In practice this shouldn't
+be too much of a problem.
+
+Anything guaranteed to be in ROM needs only 24 bits to represent it.
+The high byte of any pointer never uses its lowest bit, so another way
+to steal a bit from a pointer would be to use the highest bit, and then
+shift the bits of the highest byte left 1.
+
+
+---
+PEEPHOLE TWEAKS
+-----
+
+MULTIPLIES:  The speed of multiplies is highly dependent on the size of
+the second operand, Rs.  Multiplies where Rs should be negative should
+use a positive version of Rs and then change the sign afterwards. (the
+cost of two rsbs is only two cycles, while a multiply by a negative
+number looks like it would cost about 17 cycles)
+
+
+---
+ACTOR MANAGEMENT
+-----
+
+Actors themselves are managed with an allocation bitmap, but they have
+two normally allocated pieces of data -- their state, and their parts
+list.
+
+Collision between actors is screened by a bounding circle method.
+Currently we use generic radii based on sprite size, but there is enough
+spare room in the archetypes file to insert specific radii for each
+collidable part.
+
+The tightness or looseness of actor collision can be tuned by adjusting
+the radii used.  It should be noted that these are stored squared.  To
+determine how many pixels the radius covers, take its square root.
+Equally so, to create a bounding circle which covers x pixels at its
+furthest points, use the value of x squared.
+
+Actors have their current segment information registered in the
+actor_segs array.
+
+
+---
+SPRITE ARCHITECTURE
+-----
+
+Actor state and sprite animations are updated during the nonvbl portion
+of the game loop.  During the vblank, the frames are copied into VRAM
+from ROM.
+
+
+---
+EPHEMERAL SYSTEM
+-----
+
+Ephemerals are spawned with a handle and a counter.  They will
+self-remove when the counter finishes, or if they go off-screen.  Using
+the handle, they can be checked for collision with other sprites, or
+removed prematurely.
+
+
+--
+HANDLER CONVENTIONS
+----
+
+Actor offsets:	    r0 = actor
+
+Actor update:	    r0 = actor
+
+Actor damage:	    r0 = id of actor causing the damage (or 0xff)
+		    r1 = damage type (see game.inc)
+		    r2 = this actor
+		    r3 = magnitude of the damage
+
+Ephemeral update:   r0 = sprite
+		    r1 = id of actor registering ephemeral (or 0xff)
+		    r2 = counter
+
+Collision:	    r0 = this sprite (the one which owns the handler)
+		    r1 = the other sprite
+
+
+---
+MAP DATA
+-----
+
+The active segment list is refreshed on an actor by actor basis.  Actors
+which mimic background objects will be able to inject appropriate
+segments for their shapes in real-time, probably by maintaining a small
+list of dynamic segments which is mixed in with the segments obtained
+from walking the tree.  These actors must be careful not to clutter the
+list with their segments however.
+
+There is a maximum of 255 segments in the list at a time.  In practice,
+this shouldn't be a problem.  (with more than a handful of actors, the
+physics engine would probably crawl with this many segments to check)
+Thanks to a revised system of handling segments, this number could be
+extended if necessary.
+
+
+---
+LINE TYPES
+-----
+
+These are the colors used in PCXes.  pcx2lns translates them into flags
+which are listed below this table.
+
+Type	| Palette Idx	| Description
+--------+---------------+----------------------------------
+15	| 255		| normal friction, bounce left
+14	| 254		| normal friction, bounce right
+13	| 253		| normal friction, pass through
+12	| 252		| ladder from right
+11	| 251		| ladder from left
+10	| 250		| ice
+9	| 249		| death
+8       | 248           | pain
+6	| 246		| water box top or left
+5	| 245		| water box bottom or right
+1       | 241           | normal friction, bounce left
+0       | 240           | normal friction, bounce right
+-----------------------------------------------------------
+
+
+Bit	| Description
+--------+--------------------------------------------------
+0	| Collide if v_y cmp 0 (when 0, cmp = >, else cmp = <)
+1	| Collide if v_x cmp 0
+2	| Passable
+3	| Ladder
+4	| Fatal
+5       | Painful
+6       | Alpha
+7       | Beta
+-----------------------------------------------------------
+
+
+---
+MEMORY MANAGEMENT
+-----
+
+For resources which we know we'll need, we use fixed size allocation
+bitmaps independent of other memory management.  We also provide an
+allocator for general EWRAM use, which allocates in words.
+
+sprite	    allocation bitmap of up to 128 fixed-size entries.
+actor	    allocation bitmap of up to 256 fixed-size entries.
+layer	    fixed array of pointers.
+
+In the case that we begin doing lots of memory-intensive work outside
+the in-game loop, we will want to start allocating the blocks of memory
+used by these modules as we enter the in-game state, and deallocating
+them when we leave it.  Ideally, we would use a memory allocation
+strategy which would allow us to mark fixed addresses as off-limits to
+avoid pointer dereference overhead in these modules.
+
+XXX also mention alloc, physics, music, level, dynpal, etc
+
+
+---
+EWRAM USAGE
+-----
+
+Size	| Name
+--------^--------------------------------
+8k	| Actor runtime data (256 actors)
+96k	| Uncompressed tile data (48k per world)
+32k	| Uncompressed sprite frames
+24k     | Line segment data
+-----------------------------------------
+
+Total Usage: 160k (96k remaining)
+
+
+---
+IWRAM USAGE
+-----
+
+XXX this is hideously out of date
+
+Size	| Name
+--------^--------------------------------
+2k	| Sprite runtime data (128 sprites)
+-----------------------------------------
+
+
+---
+VRAM USAGE
+-----
+
+Currently, VRAM organization looks somewhat like this:
+
+    00000 | Map bank 0 (usually alpha) and Tile bank 0
+    00800 | Map bank 1 (usually alpha)
+    01000 | Map bank 2 (usually alpha)
+    01800 | Map bank 3 (usually alpha)
+    02000 | Map bank 4 (usually beta)
+    02800 | Map bank 5 (usually beta)
+    03000 | Map bank 6 (usually beta)
+    03800 | Map bank 7 (usually beta)
+    04000 | Tile bank 1
+          | ...
+	  |
+	  |
+    08000 | Tile bank 2
+          | ...
+	  |
+	  |
+    0C000 | Tile bank 3
+	  | ...
+	  |
+	  |
+    10000 | Sprite RAM
+	  | ...
+	  |
+	  |
+          |
+	  |
+    17E00 | Font buffer
+    18000 | End of VRAM
+
+
+The font buffer is likely to soon be moved to sit at the end of one of
+the tile banks or similar.
+
+
+---
+MISC
+-----
+
+likely timer allocation:
+    0 \ stereo sample DMA
+    1 /
+    2 - music playback
+    3 - physics, fades and effects
+
+dma allocation:
+    0 - unused... maybe for quick register updates in hblank
+    1 \ stereo sample DMA
+    2 /
+    3 - graphics dma
+
+sound channels:
+    1/2	    leads
+    3	    bass
+    4	    percussion, sfx
+    pcm	    additional samples, sfx
+
+
+---
+I18N NOTES
+-----
+
+Locations of text in the game:
+
+Constant strings:
+    - between level screen
+        (width allocations are dynamic)
+    - menus (options, main, continue)
+    - quest selector info for each character
+    - endings, credits
+
+Require graphical changes:
+    - game over screen
+    - rescue ephemeral
+
+While two-byte fonts aren't supported, the font map can have any layout
+desired.
+

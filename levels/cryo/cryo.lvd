@@ -1,0 +1,73 @@
+#
+# level description file -- cold storage
+# Convergence
+# $Id: cryo.lvd,v 1.5 2002/12/09 17:41:15 retsyn Exp $
+#
+
+name cold_storage
+mode 0
+tilesets 1
+alpha_palette levels/cryo/alpha_bg.pal
+beta_palette levels/cryo/beta_bg.pal
+line_bank levels/cryo/cryo.lnd
+alpha_segtree levels/cryo/alpha_sp.tree
+beta_segtree levels/cryo/beta_sp.tree
+
+###
+# Tilesets
+#
+
+tileset alpha_bg { bank 1 global file levels/cryo/alpha_all.tiles }
+tileset beta_bg { bank 1 global file levels/cryo/beta_all.tiles }
+
+
+###
+# Layers
+#
+
+layer alpha_ov { width 201 height 208  tile_bank 1  priority 0
+    map_bank 0  scroll_speed 128  source  levels/cryo/alpha_ov.map }
+layer alpha_fg { width 201 height 208  tile_bank 1  priority 2
+    map_bank 1  scroll_speed 128  source levels/cryo/alpha_fg.map }
+layer alpha_bg { width 64  height 64   tile_bank 1  priority 3
+    map_bank 2  scroll_speed 80  source levels/cryo/alpha_bg.map  global  loop both }
+no_layer
+
+layer beta_ov { width 201 height 208  tile_bank 1  priority 0
+    map_bank 3  scroll_speed 128  source  levels/cryo/beta_ov.map }
+layer beta_fg { width 201 height 208  tile_bank 1  priority 2
+    map_bank 4  scroll_speed 128  source levels/cryo/beta_fg.map }
+layer beta_bg { width 64  height 64   tile_bank 1  priority 3
+    map_bank 5  scroll_speed 80  source levels/cryo/beta_bg.map  global  loop both }
+no_layer
+
+
+####
+# Actors
+#
+
+actor_cluster { type ARCH_ICE_CAPTAIN  alpha  hard  blank_state 0 
+} [ x 1096 y 1448 easy normal ; x 1136 y 1448 easy normal ; 
+    x 1016 y 1448 easy normal ; x 1056 y 1448 normal ; x 496 y 1448 easy normal ;
+    x 536 y 1448 easy normal ; x 776 y 1448 easy normal ; x 736 y 1448 ; x 696 y 1448 ;
+    x 1384 y 976 easy normal ; x 1408 y 976 easy normal ; x 1440 y 976 normal ; 
+    x 1464 y 976 ; x 240 y 184 easy normal ; x 256 y 184 normal ]
+
+actor_cluster { type ARCH_ICE_SENTRY  alpha  hard  blank_state 0
+} [ x 1200 y 1448 easy normal ; x 400 y 1192 normal ; x 1344 y 976 normal ; 
+    x 1320 y 760 normal ; x 720 y 688 ; x 536 y 688 ; x 216 y 184 normal ;
+    x 1336 y 352 ]
+
+
+actor_cluster { type ARCH_BLUE_STEVE  alpha  hard  blank_state 0 
+} [ x 808 y 224 easy normal ; x 1128 y 280  normal ; x 768 y 1032 easy normal ;
+    x 528 y 1120 ]
+
+actor_cluster { type ARCH_ICECRAWLER  beta  hard  blank_state 0
+} [ x 856 y 1584 easy normal ; x 832 y 760 ; x 424 y 448 easy normal ; x 624 y 448 ;
+    x 1424 y 352 ]
+
+
+
+
+# EOF 

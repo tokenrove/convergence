@@ -1,0 +1,229 @@
+% dynpal -- dynamic palette system
+%
+% $Id: dynpal.nws,v 1.3 2002/11/22 11:56:46 tek Exp $
+
+This module deals with dynamically loading sprite palettes into the
+global sprite palette.  It uses a simple reference counting system to
+manage palettes that should be kept in, et cetera, and makes no really
+useful provisions for too many palettes being allocated at once.
+
+It also has a similar set of routines for dynamically allocating
+rotation fields for rotscale sprites, below.
+
+<<Files to include>>= 
+	.include "sprite.inc"
+	.include "gba.inc"
+
+@ Each entry in the palette map is composed of the index in the palette
+table of this palette (or 0xff if it is unallocated), and the reference
+count, which is the number of sprites which make reference to this
+palette.  [[NHWPALETTES]] -- number of hardware palettes.
+
+<<Constants>>= 
+.equ PALMAP_PAL,    0
+.equ PALMAP_REFCNT, 1
+.equ MAXPALETTES, 64
+.equ NHWPALETTES, 16
+
+@ The reverse map keeps track of whether a given palette index is
+actually mapped in.
+
+<<EWRAM Variables>>= 
+reverse_map: .skip MAXPALETTES
+palette_map: .skip NHWPALETTES*2
+
+@
+
+<<ARM Routines in ROM>>= 
+	.global dynpal_init
+dynpal_init:
+	ldr r0, =reverse_map
+	mov r1, #MAXPALETTES
+	ldr r2, =0xffffffff
+0:	str r2, [r0], #4
+	subs r1, r1, #4
+	bne 0b
+
+	ldr r0, =palette_map
+	mov r1, #NHWPALETTES*2
+	ldr r2, =0x00ff00ff
+0:	str r2, [r0], #4
+	subs r1, r1, #4
+	bne 0b
+
+	bx lr
+@
+
+
+<<ARM Routines in ROM>>= 
+	.global dynpal_shutdown
+dynpal_shutdown:
+	bx lr
+
+@ The map routine is the crucial element in this module.  We check if
+the given index is already mapped, and if so, we just increment its
+reference count and return the real palette index.  If not, we try to
+find a free space, and load it in.  We take the sprite index in {\bf r0}
+and the palette index in {\bf r1}.
+
+<<ARM Routines in ROM>>= 
+	.global dynpal_map
+dynpal_map:
+	stmfd sp!, {r4-r10,r12,lr}
+
+	cmp r1, #MAXPALETTES
+	movge r0, r1
+	bge abort_digits
+
+	ldr r2, =reverse_map
+	ldrb r2, [r2, r1]
+	cmp r2, #0xff
+	bne 5f
+
+	ldr r3, =palette_map
+	mov r2, #0
+0:	ldrb r0, [r3, #PALMAP_PAL]
+	cmp r0, #0xff
+	beq 2f
+
+	add r3, r3, #2
+	add r2, r2, #1
+	cmp r2, #NHWPALETTES
+	blt 0b
+
+	@ No free palettes!
+	@ XXX deal with this more gracefully
+	ldr r0, =msg_nofreepals
+	bal abort
+
+2:	strb r1, [r3, #PALMAP_PAL]
+	mov r0, #0
+	strb r0, [r3, #PALMAP_REFCNT]
+	ldr r0, =reverse_map
+	strb r2, [r0, r1]
+
+	<<Copy in the palette>>
+
+5:	ldr r3, =palette_map
+	add r3, r3, r2, lsl #1
+	ldrb r0, [r3, #PALMAP_REFCNT]
+	add r0, r0, #1
+	strb r0, [r3, #PALMAP_REFCNT]
+
+	mov r0, r2
+
+	ldmfd sp!, {r4-r10,r12,lr}
+	bx lr
+@
+
+<<Copy in the palette>>= 
+	ldr r0, =palette_table
+	add r0, r0, r1, lsl #5
+	mov r3, #palram_base
+	add r3, r3, #512
+	add r3, r3, r2, lsl #5
+
+	ldmia r0!, {r4-r10,r12}
+	stmia r3!, {r4-r10,r12}
+
+@ The unmap routine takes the (hardware) palette index to unmap in {\bf
+r0}.  We first check the reference count, decrementing it.  If it's less
+than zero, something has gone horribly wrong.  If it's zero, we want to
+remove the mapping.  Otherwise, we just leave it alone.
+
+<<ARM Routines in ROM>>= 
+	.global dynpal_unmap
+dynpal_unmap:
+	ldr r1, =palette_map
+	add r1, r1, r0, lsl #1
+	ldrb r2, [r1, #PALMAP_REFCNT]
+	subs r2, r2, #1
+	cmp r2, #0
+	ldrlt r0, =msg_badrefcnt
+	blt abort
+	strb r2, [r1, #PALMAP_REFCNT]
+	bne 9f
+
+	ldrb r2, [r1, #PALMAP_PAL]
+	cmp r2, #0xff
+	beq abort_digits
+	ldr r0, =reverse_map
+	mov r3, #0xff
+	strb r3, [r0, r2]
+	strb r3, [r1, #PALMAP_PAL]
+
+9:	bx lr
+@
+
+<<Read-only data>>= 
+msg_badrefcnt: .string "dynpal: bad refcnt"
+msg_nofreepals: .string "dynpal: nothing free!"
+@
+
+\section{Rotfield Allocation}
+
+There are only 32 hardware rotation fields.
+
+<<Constants>>= 
+.equ NROTFIELDS, 32
+
+@ We just keep track of which rotation fields have been given out up to
+this point.  A bit is set if a rotation field is allocated, unset if
+not.  When a sprite is removed, they lose their rotation field, too.
+
+<<EWRAM Variables>>= 
+rotfield_map: .skip 4
+@
+
+<<ARM Routines in ROM>>= 
+	.global rotfield_alloc_init
+rotfield_alloc_init:
+	ldr r0, =rotfield_map
+	mov r1, #0
+	str r1, [r0]
+	bx lr
+@
+
+<<ARM Routines in ROM>>= 
+	.global rotfield_alloc
+rotfield_alloc:
+	ldr r0, =rotfield_map
+	ldr r1, [r0]
+	mov r2, #0
+0:	tst r1, #1
+	beq 1f
+	mov r1, r1, lsr #1
+	add r2, r2, #1
+	cmp r2, #NROTFIELDS
+	blt 0b
+
+	@ no free rotfields
+	ldr r0, =msg_norotfields
+	bal abort
+
+1:	ldr r1, [r0]
+	mov r3, #1
+	mov r3, r3, lsl r2
+	orr r1, r1, r3
+	str r1, [r0]
+	mov r0, r2
+	bx lr
+@
+
+<<ARM Routines in ROM>>= 
+	.global rotfield_free
+rotfield_free:
+	ldr r1, =rotfield_map
+	ldr r3, [r1]
+	mov r2, #1
+	mov r2, r2, lsl r0
+	bic r3, r3, r2
+	str r3, [r1]
+	bx lr
+@
+
+<<Read-only data>>= 
+msg_norotfields: .string "dynpal: no free rotfields!"
+@
+
+% EOF dynpal.nws

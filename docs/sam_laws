@@ -1,0 +1,20 @@
+--------
+SAM LAWS
+----
+
+	This file contains a list of desired ranges for Sam's movement
+abilities.
+
+    - Sam's jump should take him 6 and a half tiles off the ground from
+which he jumps.
+
+    - Sam should be able to clear a 13 tile gap with a maximum running
+jump.
+
+    - Sam should be able to wall jump easily up a shaft that is 9
+tiles wide.
+
+    - Falling a distance less than 20 tiles will not hurt Sam.
+  
+    - Sam can fit under a 3 tile high gap when ducking, allowing for
+duckslide on ice under 3 tile high gaps.

@@ -1,0 +1,51 @@
+#
+# level description file -- s_boss
+# Convergence
+# $Id: s_boss.lvd,v 1.2 2002/12/06 20:06:30 retsyn Exp $
+#
+
+name s_boss
+mode 0
+tilesets 3
+alpha_palette levels/s_boss/alpha_hg.pal
+beta_palette levels/s_boss/beta_hg.pal
+line_bank levels/s_boss/s_boss.lnd
+alpha_segtree levels/s_boss/alpha_sp.tree
+beta_segtree levels/s_boss/beta_sp.tree
+
+###
+# Tilesets
+#
+
+tileset alpha_fg { bank 1 file levels/s_boss/alpha_fg.tiles }
+ext_tileset grid_alpha_hg_tiles
+ext_tileset quantum_alpha_bg_tiles
+tileset beta_fg { bank 1 file levels/s_boss/beta_fg.tiles }
+ext_tileset grid_beta_hg_tiles
+ext_tileset quantum_beta_bg_tiles
+
+
+###
+# Layers
+#
+
+layer alpha_fg { width 60 height 40  tile_bank 1  priority 2
+    map_bank 0  scroll_speed 128   source levels/s_boss/alpha_fg.map }
+ext_layer grid_alpha_hg_mrle
+ext_layer quantum_alpha_bg_mrle
+no_layer
+layer beta_fg { width 60 height 40  tile_bank 1  priority 2
+    map_bank 3  scroll_speed 128   source levels/s_boss/beta_fg.map }
+ext_layer grid_beta_hg_mrle
+ext_layer quantum_beta_bg_mrle
+no_layer
+
+###
+# Actors
+#
+
+actor { type ARCH_SHIFTER  alpha beta  easy normal hard  blank_state 0
+    trigger 1  x 296 y 128 }
+
+
+# EOF s_boss.lvd

@@ -1,0 +1,349 @@
+% fx -- first time in ntsc!@!@#$
+%
+% $Id: fx.nws,v 1.2 2002/11/22 11:56:46 tek Exp $
+
+
+<<Files to include>>= 
+	.include "gba.inc"
+@
+
+\section{Fades}
+
+The white to black fade is for clean fading from the Nintendo logo on
+boot.  Note that it fades all the way to black, so you'll need a fade in
+after you've set up your image.
+
+<<ARM Routines in ROM>>= 
+	.global fade_whitetoblack
+fade_whitetoblack:
+	stmfd sp!, {r4-r6,lr}
+	mov r6, #30
+
+	ldr r0, =REG_BLDCNT
+	ldr r1, =0b11111110111111
+	strh r1, [r0]
+
+	ldr r0, =REG_BLDLUMA
+	mov r5, #15
+	strh r5, [r0]
+
+0:	mov r4, r6
+1:	bl gfx_wait_vblank
+	subs r4, r4, #1
+	bne 1b
+	ldr r0, =REG_BLDLUMA
+	subs r5, r5, #1
+	strh r5, [r0]
+	bne 0b
+
+	ldr r0, =REG_BLDCNT
+	ldr r1, =0b11111111111111
+	strh r1, [r0]
+
+	ldr r0, =REG_BLDLUMA
+	mov r5, #0
+	strh r5, [r0]
+
+0:	mov r4, r6
+1:	bl gfx_wait_vblank
+	subs r4, r4, #1
+	bne 1b
+	ldr r0, =REG_BLDLUMA
+	add r5, r5, #1
+	strh r5, [r0]
+	cmp r5, #15
+	bne 0b
+
+	ldmfd sp!, {r4-r6,lr}
+	bx lr
+
+@ Fade in and fade out are simple fade routines that use the blend
+registers to fade to or from black.  They take a single argument, which
+is the number of vblanks to wait between each step of the fade.
+
+<<ARM Routines in ROM>>= 
+	.global fade_out
+fade_out:
+	stmfd sp!, {r4-r6,lr}
+	mov r6, r0
+
+	ldr r0, =REG_BLDCNT
+	ldr r1, =0b11111111111111
+	strh r1, [r0]
+
+	ldr r0, =REG_BLDLUMA
+	mov r5, #0
+	strh r5, [r0]
+
+0:	mov r4, r6
+1:	bl gfx_wait_vblank
+	subs r4, r4, #1
+	bne 1b
+	ldr r0, =REG_BLDLUMA
+	add r5, r5, #1
+	strh r5, [r0]
+	cmp r5, #15
+	bne 0b
+
+	ldmfd sp!, {r4-r6,lr}
+	bx lr
+
+
+	.global fade_in
+fade_in:
+	stmfd sp!, {r4-r6,lr}
+	mov r6, r0
+
+	ldr r0, =REG_BLDCNT
+	ldr r1, =0b11111111111111
+	strh r1, [r0]
+
+	ldr r0, =REG_BLDLUMA
+	mov r5, #15
+	strh r5, [r0]
+
+0:	mov r4, r6
+1:	bl gfx_wait_vblank
+	subs r4, r4, #1
+	bne 1b
+	ldr r0, =REG_BLDLUMA
+	subs r5, r5, #1
+	strh r5, [r0]
+	bne 0b
+
+	ldmfd sp!, {r4-r6,lr}
+	bx lr
+
+@
+
+\section{Horizontal Blank FX}
+
+Almost everything here is in IWRAM to make sure that we are never short
+on cycles, as we have no more than 272 cycles per hblank in the best
+condition.
+
+<<IWRAM Variables>>= 
+start_line: .skip 1
+end_line: .skip 1
+hbl_effect: .skip 1
+hbl_modifier: .skip 1
+bg2sc_shadow: .skip 4
+hbl_scratch: .skip 4
+.align
+
+@ The basic setup of the hblank effects is that the vcount interrupt is
+enabled, and set to trigger at the line prior to the desired start line,
+modulo 228.  When this happens, we enable the hblank interrupt and setup
+a new vcount handler, for the last line desired.  The hblank interrupt
+will do the actual effect, while the second vcount handler will be
+responsible for disabling the hblank interrupt when it is no longer
+needed.
+
+The [[hblank_init]] routine takes the start and end lines ({\bf r0}
+and {\bf r1}), the effect desired {\bf r2}, and the modifier value
+for the effect {\bf r3}, if applicable.
+
+<<ARM Routines in ROM>>= 
+	.global hblank_init
+hblank_init:
+	stmfd sp!, {r4,lr}
+
+	ldr r4, =start_line
+	subs r0, r0, #1
+	movlt r0, #228
+	strb r0, [r4]
+	ldr r4, =end_line
+	subs r1, r1, #1
+	movlt r1, #228
+	strb r1, [r4]
+	ldr r4, =hbl_effect
+	strb r2, [r4]
+	ldr r4, =hbl_modifier
+	strb r3, [r4]
+
+	@ xxx change this
+	ldr r2, =bg2sc_shadow
+	mov r1, #0
+	str r1, [r2]
+
+	mov r2, r0
+	@ setup first vcount handler
+	ldr r0, =REG_STAT
+	ldrh r1, [r0]
+	and r1, r1, #0xff
+	orr r1, r1, r2, lsl #8
+	orr r1, r1, #0b100000
+	bic r1, r1, #0b010000
+	strh r1, [r0]
+
+	mov r0, #INT_VCOUNT
+	ldr r1, =vcount_enablehb
+	bl intr_enable
+	ldmfd sp!, {r4,lr}
+	bx lr
+@
+
+<<ARM Routines in ROM>>= 
+	.global hblank_shutdown
+hblank_shutdown:
+	stmfd sp!, {lr}
+	ldr r0, =REG_STAT
+	ldrh r1, [r0]
+	bic r1, r1, #0b110000
+	strh r1, [r0]
+
+	mov r0, #INT_VCOUNT
+	bl intr_disable
+	mov r0, #INT_HBLANK
+	bl intr_disable
+	ldmfd sp!, {lr}
+@
+
+<<ARM Routines in IWRAM>>= 
+vcount_enablehb:
+	stmfd sp!, {lr}
+
+	@ setup the vcount hb disable interrupt first
+	mov r0, #INT_VCOUNT
+	ldr r1, =intr_disable
+	mov lr, pc
+	mov pc, r1
+	mov r0, #INT_VCOUNT
+	ldr r1, =vcount_disablehb
+	ldr r2, =intr_enable
+	mov lr, pc
+	mov pc, r2
+
+	@ figure out which hblank handler to enable
+	ldr r0, =hbl_effect
+	ldrb r0, [r0]
+	cmp r0, #HBLANK_HSINUS
+	ldreq r1, =hblank_hsinus
+	cmp r0, #HBLANK_VDRAG
+	ldreq r1, =hblank_vdrag
+	@ enable the hblank interrupt
+	mov r0, #INT_HBLANK
+	ldr r2, =intr_enable
+	mov lr, pc
+	mov pc, r2
+
+
+	@ actually enable vcount and hblank interrupts
+	ldr r2, =end_line
+	ldrb r2, [r2]
+	ldr r0, =REG_STAT
+	ldrh r1, [r0]
+	and r1, r1, #0xff
+	orr r1, r1, r2, lsl #8
+	orr r1, r1, #0b110000
+	strh r1, [r0]
+
+	ldmfd sp!, {lr}
+	bx lr
+@
+
+<<ARM Routines in IWRAM>>= 
+vcount_disablehb:
+	stmfd sp!, {lr}
+
+	@ disable hblank interrupt.
+	ldr r2, =start_line
+	ldrb r2, [r2]
+	ldr r0, =REG_STAT
+	ldrh r1, [r0]
+	and r1, r1, #0xff
+	orr r1, r1, r2, lsl #8
+	bic r1, r1, #0b010000
+	strh r1, [r0]
+
+	mov r0, #INT_VCOUNT
+	ldr r1, =intr_disable
+	mov lr, pc
+	mov pc, r1
+
+	@ setup interrupt for our next time around
+	mov r0, #INT_VCOUNT
+	ldr r1, =vcount_enablehb
+	ldr r2, =intr_enable
+	mov lr, pc
+	mov pc, r2
+
+	mov r0, #INT_HBLANK
+	ldr r1, =intr_disable
+	mov lr, pc
+	mov pc, r1
+
+	bl hblank_hsinus_end
+
+	ldmfd sp!, {lr}
+	bx lr
+@
+
+The various effects available are enumerated below.
+
+The horizontal sinus effect causes the background scroll registers to be
+adjusted by a sine-wave pattern.
+
+<<Constants>>= 
+.equ HBLANK_HSINUS, 0
+@
+
+<<ARM Routines in IWRAM>>= 
+hblank_hsinus:
+	ldr r0, =bg2sc_shadow
+	ldrh r1, [r0]
+	ldrh r2, [r0, #2]
+	ldr r0, =hbl_scratch
+	ldr r3, [r0]
+	add r3, r3, #1
+	str r3, [r0]
+	ldr r0, =hbl_modifier
+	ldrb r0, [r0]
+	mov r3, r3, lsr r0
+	and r3, r3, #0xff
+	ldr r0, =sine_lut
+	mov r3, r3, lsl #1
+	ldrh r3, [r0, r3]
+	add r1, r1, r3, asr #8
+	ldr r0, =REG_BG2SCX
+	strh r1, [r0], #2
+	strh r2, [r0]
+	bx lr
+
+hblank_hsinus_end:
+	ldr r0, =bg2sc_shadow
+	ldr r1, [r0]
+	ldr r0, =REG_BG2SCX
+	str r1, [r0]
+	strb r1, [r0]
+	bx lr
+@
+
+
+<<Constants>>= 
+.equ HBLANK_VDRAG, 1
+@
+
+<<ARM Routines in IWRAM>>= 
+hblank_vdrag:
+	ldr r0, =bg2sc_shadow
+	ldrh r1, [r0]
+	ldrh r2, [r0, #2]
+	ldr r0, =hbl_scratch
+	ldr r3, [r0]
+	add r3, r3, #1
+	ldr r0, =hbl_modifier
+	ldrb r0, [r0]
+	cmp r3, r0
+	movge r3, #0
+	ldr r0, =hbl_scratch
+	str r3, [r0]
+	sub r2, r2, r3
+	ldr r0, =REG_BG2SCX
+	strh r1, [r0], #2
+	strh r2, [r0]
+	bx lr
+
+@
+
+% EOR fx.nws

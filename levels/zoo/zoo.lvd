@@ -1,0 +1,53 @@
+#
+# level description file -- zoo
+# Convergence
+# $Id: zoo.lvd,v 1.2 2002/12/10 14:51:28 retsyn Exp $
+#
+
+name zoo
+mode 0
+tilesets 3
+alpha_palette levels/zoo/alpha_fg.pal
+beta_palette levels/zoo/beta_fg.pal
+line_bank levels/zoo/zoo.lnd
+alpha_segtree levels/zoo/alpha_sp.tree
+beta_segtree levels/zoo/beta_sp.tree
+
+###
+# Tilesets
+#
+
+ext_tileset medical_alpha_bg_tiles
+tileset alpha_fm { bank 2 file levels/zoo/alpha_fm.tiles }
+tileset alpha_bg { bank 3 file levels/zoo/alpha_bg.tiles }
+ext_tileset medical_beta_bg_tiles
+tileset beta_fm { bank 2 file levels/zoo/beta_fm.tiles }
+tileset beta_bg { bank 3 file levels/zoo/beta_bg.tiles }
+
+
+###
+# Layers
+#
+
+layer alpha_fg { width 385 height 91  tile_bank 2  priority 2
+    map_bank 0  scroll_speed 128  source levels/zoo/alpha_fg.map }
+layer alpha_mg { width 385 height 91  tile_bank 2  priority 0
+    map_bank 2  scroll_speed 128  source levels/zoo/alpha_ov.map }
+layer alpha_bg { width 64  height 64   tile_bank 3  priority 3
+    map_bank 4  scroll_speed 70   source levels/zoo/alpha_bg.map }
+ext_layer medical_alpha_bg_mrle
+layer beta_fg { width 385 height 91  tile_bank 2  priority 2
+    map_bank 5  scroll_speed 128  source levels/zoo/beta_fg.map }
+layer beta_mg { width 385 height 91  tile_bank 2  priority 0
+    map_bank 6  scroll_speed 128  source levels/zoo/beta_ov.map }
+layer beta_bg { width 64  height 64   tile_bank 3  priority 3
+    map_bank 7  scroll_speed 70   source levels/zoo/beta_bg.map }
+ext_layer medical_beta_bg_mrle
+
+
+###
+# Actors!
+#
+
+
+

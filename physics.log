@@ -1,0 +1,150 @@
+This is TeX, Version 3.14159 (Web2C 7.4.5) (format=latex 2003.4.13)  8 MAY 2003 20:14
+**physics.tex
+(./physics.tex
+LaTeX2e <2001/06/01>
+Babel <v3.7h> and hyphenation patterns for american, french, german, ngerman, n
+ohyphenation, loaded.
+(/usr/share/texmf/tex/latex/base/article.cls
+Document Class: article 2001/04/21 v1.4e Standard LaTeX document class
+(/usr/share/texmf/tex/latex/base/size10.clo
+File: size10.clo 2001/04/21 v1.4e Standard LaTeX file (size option)
+)
+\c@part=\count79
+\c@section=\count80
+\c@subsection=\count81
+\c@subsubsection=\count82
+\c@paragraph=\count83
+\c@subparagraph=\count84
+\c@figure=\count85
+\c@table=\count86
+\abovecaptionskip=\skip41
+\belowcaptionskip=\skip42
+\bibindent=\dimen102
+)
+(/usr/share/texmf/tex/plain/misc/noweb.sty
+\nwmarginglue=\dimen103
+\codehsize=\dimen104
+\codemargin=\dimen105
+\nwdefspace=\dimen106
+\equivbox=\box26
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <7> on input line 77.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <5> on input line 77.
+\plusequivbox=\box27
+\nwcodetopsep=\skip43
+\nwcodepenalty=\count87
+\nwbreakcodespace=\dimen107
+\@original@textwidth=\dimen108
+\nwcodecommentsep=\skip44
+\@nwlopage=\count88
+\@nwhipage=\count89
+\@nwlosub=\count90
+\@nwhisub=\count91
+\@nwpagetemp=\count92
+\@nwpagecount=\count93
+\sub@page=\count94
+\@nwalph@n=\count95
+\nw@chunkcount=\count96
+\@commacount=\count97
+\nwix@counter=\count98
+) (./physics.aux)
+\openout1 = `physics.aux'.
+
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 1.
+LaTeX Font Info:    ... okay on input line 1.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 1.
+LaTeX Font Info:    ... okay on input line 1.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 1.
+LaTeX Font Info:    ... okay on input line 1.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 1.
+LaTeX Font Info:    ... okay on input line 1.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 1.
+LaTeX Font Info:    ... okay on input line 1.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 1.
+LaTeX Font Info:    ... okay on input line 1.
+ [1
+
+] [2]
+
+! LaTeX Error: Can be used only in preamble.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.51 \documentclass
+                   [draft]{article}
+? a
+Type <return> to proceed, S to scroll future error messages,
+R to run without stopping, Q to run quietly,
+I to insert something, E to edit your file,
+1 or ... or 9 to ignore the next 1 to 9 tokens of input,
+H for help, X to quit.
+? 
+
+! LaTeX Error: Can be used only in preamble.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.52 \usepackage
+                {noweb}
+? 
+
+! LaTeX Error: Can be used only in preamble.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.53 \usepackage
+                {times}
+? 
+
+! LaTeX Error: Can be used only in preamble.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.54 \usepackage
+                [dvips]{hyperref}
+? 
+
+! LaTeX Error: Can be used only in preamble.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.60 \begin{document}
+                     
+? 
+No file physics.toc.
+\tf@toc=\write3
+\openout3 = `physics.toc'.
+
+[3
+
+] [4] [5] [6] [7] [8] [9] [10] [11] [12] [13] [14] [15] [16] [17] [18]
+[19] [20] [21] [22] [23] [24] [25] [26] [27] [28] [29] [30] [31] [32] [33]
+[34] [35]
+Overfull \hbox (1.9461pt too wide) in paragraph at lines 1713--1717
+[]\OT1/cmr/m/n/10 Intersection is de-tected in much the same way as it is in \O
+T1/cmtt/m/n/10 physics[]individual\OT1/cmr/m/n/10 .
+ []
+
+[36] [37] [38] [39] [40] [41] [42] [43] (./physics.aux) )
+(\end occurred inside a group at level 1) 
+Here is how much of TeX's memory you used:
+ 492 strings out of 95847
+ 5684 string characters out of 1195948
+ 57839 words of memory out of 1000001
+ 3497 multiletter control sequences out of 10000+50000
+ 5971 words of font info for 22 fonts, out of 500000 for 1000
+ 14 hyphenation exceptions out of 1000
+ 25i,8n,18p,378b,422s stack positions out of 1500i,500n,5000p,200000b,5000s
+
+Output written on physics.dvi (43 pages, 72808 bytes).

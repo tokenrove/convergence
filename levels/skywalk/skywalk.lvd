@@ -1,0 +1,74 @@
+
+#
+# level description file -- skywalk
+# Convergence
+# $Id: skywalk.lvd,v 1.2 2002/12/09 13:09:37 tek Exp $
+#
+
+name skywalk
+mode 0
+tilesets 2
+alpha_palette levels/skywalk/alpha_fg.pal
+beta_palette levels/skywalk/beta_fg.pal
+line_bank levels/skywalk/skywalk.lnd
+alpha_segtree levels/skywalk/alpha_sp.tree
+beta_segtree levels/skywalk/beta_sp.tree
+
+###
+# Tilesets
+#
+
+ext_tileset medical_alpha_bg_tiles
+tileset alpha_fg { bank 2 file levels/skywalk/alpha_fg.tiles }
+ext_tileset medical_beta_bg_tiles
+tileset beta_fg { bank 2 file levels/skywalk/beta_fg.tiles }
+
+
+###
+# Layers
+#
+
+layer alpha_fg { width 650 height 60  tile_bank 2  priority 2
+    map_bank 0  scroll_speed 128  source levels/skywalk/alpha_fg.map }
+ext_layer medical_alpha_bg_mrle
+no_layer
+no_layer
+
+layer beta_fg { width 650  height 60  tile_bank 2  priority 2
+    map_bank 2  scroll_speed 128  source levels/skywalk/beta_fg.map }
+ext_layer medical_beta_bg_mrle
+no_layer
+no_layer
+
+
+###
+# Actors
+#
+
+actor_cluster {
+    type ARCH_GREEN_TROOPER  alpha  easy normal hard
+    blank_state 0
+} [ x 810 y 300 ; x 790 y 300 ; x 938 y 447 ; x 980 y 447 ;
+    x 780 y 447 ; x 1059 y 300 ]
+
+actor_cluster { type ARCH_SCIENTIST  alpha  easy normal hard blank_state 0
+} [ x 899 y 300 ; x 1088 y 440 ; x 1008 y 440 ; x 952 y 864 ;
+    x 1272 y 864 ]
+
+actor_cluster { type ARCH_STRETCHER  alpha  easy normal hard 
+    blank_state 2 } [ x 1142 y 176 ; x 1242 y 176 ; x 1312 y 400 ;
+                      x 1072 y 460 ]
+
+actor { type ARCH_ELEVATOR  alpha  easy normal hard  blank_state 0
+    x 600 y 416 }
+
+actor { type ARCH_GREEN_CAPTAIN  beta  easy normal hard blank_state 0
+    x 10 y 142 }
+
+actor { type ARCH_BALANCE_ORB  alpha beta  easy normal hard  blank_state 0
+    x 1213 y 310 }
+
+actor { type ARCH_ED_BEAST  alpha beta  easy normal hard  blank_state 0
+    x 107 y 1060 }
+
+# EOF skywalk.lvd

@@ -1,0 +1,47 @@
+#
+# level description file -- c_boss
+# Convergence
+# $Id: c_boss.lvd,v 1.3 2002/12/08 15:47:45 retsyn Exp $
+#
+
+name c_boss
+mode 0 
+tilesets 2
+alpha_palette levels/c_boss/alpha_fg.pal
+beta_palette levels/c_boss/beta_fg.pal
+line_bank levels/c_boss/c_boss.lnd
+alpha_segtree levels/c_boss/alpha_sp.tree
+beta_segtree levels/c_boss/beta_sp.tree
+
+###
+# Tilesets
+#
+
+ext_tileset cold_storage_alpha_bg_tiles
+tileset alpha_ov { bank 3 file levels/c_boss/alpha_fgov.tiles }
+ext_tileset cold_storage_beta_bg_tiles
+tileset beta_ov { bank 3 file levels/c_boss/beta_fgov.tiles }
+
+
+###
+# Layers
+#
+
+layer alpha_ov { width 60 height 40  tile_bank 3  priority 0
+    map_bank 1  scroll_speed 128  source levels/c_boss/alpha_ov.map }
+layer alpha_fg { width 60 height 40  tile_bank 3  priority 2
+    map_bank 0  scroll_speed 128  source levels/c_boss/alpha_fg.map }
+ext_layer cold_storage_alpha_bg_mrle
+no_layer
+
+layer beta_ov { width 60 height 40  tile_bank 3  priority 0
+    map_bank 4  scroll_speed 128  source levels/c_boss/beta_ov.map }
+layer beta_fg { width 60 height 40  tile_bank 3  priority 2
+    map_bank 3  scroll_speed 128  source levels/c_boss/beta_fg.map }
+ext_layer cold_storage_beta_bg_mrle
+no_layer
+
+
+###
+# Actors
+#

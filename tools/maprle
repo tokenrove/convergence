@@ -1,0 +1,82 @@
+#!/usr/bin/env ruby
+#
+# maprle
+# a quick hack to adaptive RLE maps
+#
+# usage: maprle <map> <width in tiles>
+#
+# output format is:
+# 0..n  word    offsets of scanlines, relative to the start of the file,
+#                   hword aligned.
+# each scanline {
+# 0 to n hword indices into this scanline (one for every 64 tiles the map has)
+# each hword is one of:
+# 1111 111n  nnnn nnnn      repeat the following halfword n+1 times
+# XXX unimplemented: 1110 1111  nnnn nnnn      repeat the following two halfwords n+1 times
+# xxxx xxxx  xxxx xxxx      any arbitrary halfword
+# }
+#
+# XXX should add support for pairs
+#
+# $Id: maprle,v 1.3 2002/12/05 14:12:03 tek Exp $
+
+mapFile = File.open(ARGV[0], "r")
+width = ARGV[1].to_i
+header = []
+outData = ""
+check = 0
+scancount = 0
+
+while !mapFile.eof? do
+    scanline = mapFile.read(width*2)
+    i = 1
+    x = scanline[0..1]
+    count = 1
+    finish = false
+    lineData = ""
+    lineHeader = ""
+    check_start = check
+    header.push(check)
+    check += ((width-1)/64)
+    while i < width do
+        if i != 0 && i%64 == 0 then
+            lineHeader += [(check-check_start)].pack("v")
+        end
+        y = scanline[2*i..2*i+1]; i += 1
+        while x == y && i < width && count < 514 && (i == 0 || i%64 != 0) do
+            count += 1
+            y = scanline[2*i..2*i+1]; i += 1
+        end
+        if i == width then
+            finish = true
+        end
+        if count > 2 || (x.unpack("v")[0]&0xFE00) == 0xFE00 then
+            lineData += ([0xFE00 | (count-1)].pack("v") + x)
+            check += 2
+        elsif count == 2 then
+            lineData += (x + x)
+            check += 2
+        else
+            lineData += x
+            check += 1
+        end
+        x = y
+        count = 1
+    end
+    if finish then
+        lineData += x
+        check += 1
+    end
+    outData += lineHeader
+    outData += lineData
+    scancount += 2
+end
+
+foo = ARGV[0].sub("map","mrle")
+outFile = File.open(foo, "w")
+# write header
+header.each { |x| outFile.write [x+scancount].pack("V") }
+outFile.write outData
+exit 0
+
+# EOF maprle.rb

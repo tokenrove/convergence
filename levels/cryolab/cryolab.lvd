@@ -1,0 +1,55 @@
+
+#
+# Level description file -- cryo lab
+# Convergence
+# $Id: cryolab.lvd,v 1.6 2002/12/09 19:49:24 retsyn Exp $
+#
+
+name cryolab
+mode 0
+tilesets 3
+alpha_palette levels/cryolab/alpha_fg.pal
+beta_palette levels/cryolab/beta_fg.pal
+line_bank levels/cryolab/cryolab.lnd
+alpha_segtree levels/cryolab/alpha_sp.tree
+beta_segtree levels/cryolab/beta_sp.tree
+
+###
+# Tilesets
+#
+
+tileset alpha_fg { bank 1 file levels/cryolab/alpha_fg.tiles }
+tileset alpha_tp { bank 2 file levels/cryolab/alpha_tp.tiles }
+tileset alpha_tw { bank 3 file levels/cryolab/alpha_tw.tiles }
+tileset beta_fg { bank 1 file levels/cryolab/beta_fg.tiles }
+tileset beta_tp { bank 2 file levels/cryolab/beta_tp.tiles }
+tileset beta_tw { bank 3 file levels/cryolab/beta_tw.tiles }
+
+
+###
+# Layers
+#
+
+layer alpha_ov { width 411 height 91  tile_bank 2  priority 0
+    map_bank 0  scroll_speed 128  source levels/cryolab/alpha_ov.map }
+layer alpha_tr { width 411 height 91  tile_bank 2  priority 0
+    map_bank 1  scroll_speed 128  source levels/cryolab/alpha_tr.map }
+layer alpha_fg { width 411 height 91  tile_bank 1  priority 2
+    map_bank 2  scroll_speed 128  source levels/cryolab/alpha_fg.map }
+layer alpha_tw { width 16  height 16  tile_bank 3  priority 3
+    map_bank 3  scroll_speed 220  source levels/cryolab/alpha_tw.map loop both }
+
+layer beta_ov { width 411 height 91  tile_bank 2  priority 0
+    map_bank 4  scroll_speed 128  source levels/cryolab/beta_ov.map }
+layer beta_tr { width 411 height 91  tile_bank 2  priority 0
+    map_bank 5  scroll_speed 128  source levels/cryolab/beta_tr.map }
+layer beta_fg { width 411 height 91  tile_bank 1  priority 2
+    map_bank 6  scroll_speed 128  source levels/cryolab/beta_fg.map }
+layer beta_tw { width 16  height 16  tile_bank 3  priority 3
+    map_bank 7  scroll_speed 220  source levels/cryolab/beta_tw.map loop both }
+
+
+###
+# Actors
+#
+

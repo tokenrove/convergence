@@ -1,0 +1,103 @@
+
+#
+# level description file -- sanitation
+# Convergence
+# $Id: sanitation.lvd,v 1.8 2002/12/09 15:15:04 retsyn Exp $
+#
+
+name sanitation
+mode 0
+tilesets 3
+alpha_palette levels/sanitation/alpha_fg.pal
+beta_palette levels/sanitation/beta_fg.pal
+line_bank levels/sanitation/sanitation.lnd
+alpha_segtree levels/sanitation/alpha_sp.tree
+beta_segtree levels/sanitation/beta_sp.tree
+
+###
+# Tilesets
+#
+
+ext_tileset courtyard_alpha_cl_tiles
+tileset alpha_mgpg { bank 2 file levels/sanitation/alpha_mgpg.tiles }
+tileset alpha_fg { bank 3 file levels/sanitation/alpha_fg.tiles }
+ext_tileset courtyard_beta_cl_tiles
+tileset beta_mgpg { bank 2 file levels/sanitation/beta_mgpg.tiles }
+tileset beta_fg { bank 3 file levels/sanitation/beta_fg.tiles }
+
+###
+# Layers
+#
+
+layer alpha_pg { width 128 height 320  tile_bank 2  priority 0
+    map_bank 0  scroll_speed 220  source levels/sanitation/alpha_pg.map loop horizontal }
+layer alpha_fg { width 504 height 160  tile_bank 3  priority 0
+    map_bank 1  scroll_speed 128  source levels/sanitation/alpha_fg.map }
+layer alpha_mg { width 128 height 66   tile_bank 2  priority 3
+    map_bank 3  scroll_speed 58   source levels/sanitation/alpha_mg.map loop horizontal }
+ext_layer courtyard_alpha_cl_mrle
+
+layer beta_pg { width 128 height 320  tile_bank 2  priority 0
+    map_bank 4  scroll_speed 220  source levels/sanitation/beta_pg.map loop horizontal }
+layer beta_fg { width 504 height 160  tile_bank 3  priority 0
+    map_bank 6  scroll_speed 128  source levels/sanitation/beta_fg.map }
+layer beta_mg { width 128 height 66   tile_bank 2  priority 3
+    map_bank 7  scroll_speed 58   source levels/sanitation/beta_mg.map loop horizontal }
+ext_layer courtyard_beta_cl_mrle
+
+
+###
+# Actors
+#
+
+actor_cluster { type ARCH_BLUE_TROOPER  alpha  blank_state 0 
+} [ x 440 y 952 easy normal hard ; x 640 y 952 normal hard ; x 680 y 952 easy normal hard ;
+    x 800 y 952 easy normal hard ; x 810 y 952 easy normal hard ; x 840 y 952 easy normal hard ; 
+    x 880 y 952 normal hard ; x 1344 y 816 easy normal hard ; x 1360 y 816 easy normal hard ; 
+    x 1448 y 152 easy normal hard ; x 1488 y 152 easy normal hard ; x 1528 y 152 normal hard ;
+    x 2688 y 152 easy normal hard ; x 2698 y 152 easy normal hard ; x 2700 y 152 normal hard ; 
+    x 2710 y 152 easy normal hard ; x 2808 y 152 normal hard ; x 2818 y 152 normal hard ; 
+    x 2828 y 152 normal hard ; x 2838 y 152 hard ; x 2848 y 152 hard ; x 3312 y 856 normal hard ;
+    x 3272 y 152 normal hard ; x 3352 y 856 easy normal hard ; x 3392 y 856 easy normal hard ]
+
+actor_cluster { type ARCH_BLUE_CAPTAIN  alpha  blank_state 0  easy normal hard
+} [ x 640 y 952 ; x 1352 y 816 ; x 1440 y 152 ; x 2760 y 152 ; x 3392 y 840 ]
+
+actor_cluster { type ARCH_BLUE_SNIPER  alpha  blank_state 0 hard
+} [ x 1864 y 328  normal ; x 2008 y 360 ; x 1584 y 48 normal ; x 1792 y 88 easy normal ; 
+    x 3624 y 496 ; x 3152 y 496 normal ; x 2296 y 464 normal ]
+
+actor_cluster { type ARCH_BLUE_STEVE  alpha  blank_state 2  hard
+} [ x 832 y 848  easy normal ; x 1728 y 792  easy normal ; x 1872 y 48  easy normal ;
+    x 2032 y 48  normal ; x 3392 y 104 ; x 2472 y 704  normal ]
+
+actor_cluster { type ARCH_SANIBOT  alpha  blank_state 0  easy normal hard
+} [ x 1544 y 904 ; x 1784 y 840 ; x 2744 y 688 ; x 3864 y 960 ]
+
+actor_cluster { type ARCH_WORM  beta  blank_state 0  easy normal hard
+} [ x 376 y 295 ; x 176 y 296 ; x 184 y 816 ; x 304 y 936 ; x 664 y 936 ; x 1024 y 936 ; 
+    x 1344 y 808 ; x 1224 y 808 ; x 1344 y 1024 ; x 1424 y 808 ; x 1744 y 904 ; x 1944 y 904 ;
+    x 2024 y 752 ; x 2024 y 360 ; x 1824 y 360 ; x 1624 y 304 ; x 1304 y 304 ; x 1224 y 168 ; 
+    x 1384 y 168 ; x 1744 y 112 ; x 1808 y 88 ; x 1968 y 88 ; x 2168 y 88 ; x 3760 y 536 ;
+    x 3840 y 504 ; x 3944 y 504 ; x 3464 y 504 ; x 3304 y 504 ; x 3104 y 504 ; x 2304 y 808 ;
+    x 2208 y 848 ; x 3368 y 848 ; x 3448 y 848 ; x 3592 y 936 ; x 3728 y 936 ; x 3792 y 872 ]
+
+actor_cluster { type ARCH_GREEN_RIPPER  beta  blank_state 0  hard
+} [ x 352 y 296  easy normal ; x 512 y 232  normal ; x 232 y 800  normal ; x 272 y 800 ; 
+    x 432 y 920  easy normal ; x 632 y 920  normal ; x 672 y 920 ; x 1032 y 744 ; x 1352 y 776 ;
+    x 1321 y 776  easy normal ; x 1776 y 872  easy normal ; x 2096 y 840 easy normal ;
+    x 1296 y 272  easy normal ; x 1768 y 152 easy normal ; x 1808 y 88 ; x 2168 y 88 normal ; 
+    x 3704 y 528  easy normal ; x 3824 y 504 easy normal ; x 3856 y 504 ; 
+    x 3096 y 528 easy normal ; x 3576 y 888 easy normal ; x 3736 y 888 normal ; x 3856 y 832 ]
+
+actor_cluster { type ARCH_CRAWLER  beta  blank_state 0  hard
+} [ x 1240 y 1008 easy normal ; x 2720 y 136 ; x 3336 y 848 ]
+
+actor_cluster { type ARCH_JOSH  beta  blank_state 0  easy normal hard
+} [ x 472 y 896 ; x 1200 y 760 ]
+
+actor_cluster { type ARCH_ED_BEAST  alpha beta  blank_state 0  
+} [ x 2008 y 736  easy normal hard ; x 1000 y 720  hard ; x 1584 y 56 hard ]
+
+# EOF sanitation.lvd
+

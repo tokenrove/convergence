@@ -1,0 +1,122 @@
+% random -- bringing the world into a state of sin, von Neumann style.
+%
+% Convergence
+% $Id: random.nws,v 1.3 2002/12/12 01:32:47 tek Exp $
+%
+
+
+We provide two random number generators here, one for generating random
+machine words, and one for generating random bits.  They are both
+initialized from an arbitrary seed, hopefully timing data or similar.
+
+Our word generator is basically Marsaglia's modification of Mitchell and
+Moore's additive generator, as discussed in Knuth's Seminumerical
+Algorithms (section 3.2.2).  The formula for this generator is
+
+    \[ X_n = (X_{n-24} \cdot X_{n-55}) mod m,  n \geq 55, \]
+
+where $m$ is our machine word size, in this case.
+
+<<Constants>>= 
+.equ RAND_LEN, 55
+.equ LAG_J, 23
+.equ LAG_K, 54
+<<EWRAM Variables>>= 
+rand_table: .skip (RAND_LEN+1)*4
+@
+
+<<ARM Routines in ROM>>= 
+	.global random_init
+random_init:
+	<<Initialize word generator>>
+	bx lr
+
+@ One interesting thing about the word generator is that we store the
+indices in the first element of the table, before the actual values, to
+reduce time spent loading addresses.
+
+<<Initialize word generator>>= 
+	ldr r0, =rand_table
+	mov r1, #LAG_J
+	strh r1, [r0], #2
+	mov r1, #LAG_K
+	strh r1, [r0], #2
+	<<Fill table for word generator>>
+@
+
+<<Fill table for word generator>>= 
+        ldr r1, =initial_table
+        mov r3, #RAND_LEN
+0:      ldr r2, [r1], #4
+        str r2, [r0], #4
+        subs r3, r3, #1
+        bne 0b
+
+@ The actual generator routine follows.
+
+<<ARM Routines in ROM>>= 
+	.global random_word
+random_word:
+	ldr r0, =rand_table
+	ldrh r1, [r0], #2
+	ldrh r2, [r0], #2
+	ldr r1, [r0, r1, lsl #2]
+	ldr r3, [r0, r2, lsl #2]
+	add r3, r1, r3
+	str r3, [r0, r2, lsl #2]
+
+	subs r2, r2, #1
+	moveq r2, #LAG_K
+	strh r2, [r0, #-2]
+
+	ldrh r1, [r0, #-4]
+	subs r1, r1, #1
+	moveq r1, #LAG_K
+	strh r1, [r0, #-4]
+
+	mov r0, r3
+	bx lr
+
+@ Now for the bit generator, from the ARM Processor Instruction Set
+documentation.
+
+<<EWRAM Variables>>= 
+rand_bits: .skip 8
+
+@
+
+<<ARM Routines in ROM>>=
+        .global random_init_bit
+random_init_bit:
+        ldr r1, =rand_bits
+        str r0, [r1], #4
+        mov r0, #0
+        str r0, [r1]
+        bx lr
+
+@ Returns either one or zero in {\bf r0}.
+
+<<ARM Routines in ROM>>= 
+	.global random_bit
+random_bit:
+	ldr r0, =rand_bits
+	ldmia r0, {r1,r2}
+        tst r2, r2, lsr #1
+        movs r3, r1, rrx
+        adc r2, r2, r2
+        eor r3, r3, r1, lsl #12
+        eor r1, r3, r3, lsr #20
+        stmia r0, {r1,r2}
+        ands r0, r2, #1
+	bx lr
+@
+
+
+The initial table for our random number generator was taken from {\tt
+/dev/random} on wolfsbane.
+
+<<Read-only data>>= 
+initial_table: .incbin "astfgl.dat"
+@
+
+% EOF random.nws

@@ -1,0 +1,42 @@
+Death system ideas
+
+   Current proposal:
+	The ephemeral sprites system that currently dipicts
+vaporization will be thrown out and replaced with pure graphical
+effects, and other forms of death will use effects too.  This allows
+no need for the "shape class" idea, as the fx would run on the sprite
+no matter what it's shape and size are.  
+	The fx for fire and vaporization would involve basically
+changing the palette of the victim to that of alpha/beta or fire, and
+then fading them out of existance while they fly backwards, in the
+case of vaporization, and make them 'disintegrate' (in the classic
+pixel by pixel sense) in the case of fire.  We can experiment with
+these if they don't look cool enough.
+	In the case of the more generic forms of death (various forms
+of physical damage, the pure effect can be a flashing and dissapearing
+in their hit frames, but I was thinking something a little more nifty
+than that.  Perhaps they could fall backward and rotate before
+dissapearing?
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"And now, something for the kids; Slogra the mummified Birdman!"
+	

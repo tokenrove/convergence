@@ -1,0 +1,2189 @@
+% guard_act -- Handlers and such for guards of all sorts.
+%
+% Convergence
+% Copyright Pureplay / 2002
+%
+% $Id: guard_act.nws,v 1.10 2002/12/13 21:41:35 retsyn Exp $
+
+
+<<Files to include>>=
+        .include "game.inc"
+        .include "offset.inc"
+        .include "actor.inc"
+        .include "sprite.inc"
+        .include "physics.inc"
+        .include "gba.inc"
+@
+
+\section{Common Routines}
+
+Guard animation constants.
+
+<<Constants>>= 
+.equ GUARD_TOPANM_STAND, 0
+.equ GUARD_TOPANM_WALK, 1
+.equ GUARD_TOPANM_CLIMB, 2
+.equ GUARD_TOPANM_JUMP, 3
+.equ GUARD_TOPANM_HIT, 4
+.equ GUARD_TOPANM_SKID, 5
+.equ GUARD_TOPANM_DUCK, 6
+.equ GUARD_TOPANM_CLIMBSTOPPED, 7
+.equ GUARD_TOPANM_DIE, 8
+.equ GUARD_TOPANM_FIRE_FORE, 9
+.equ GUARD_TOPANM_FIRE_UP, 10
+.equ GUARD_TOPANM_AIM_UP, 11
+.equ GUARD_TOPANM_THROW, 12
+.equ GUARD_TOPANM_FIRE_DOWN, 13
+.equ GUARD_TOPANM_AIM_DOWN, 14
+
+.equ GUARD_BOTANM_STAND, 0
+.equ GUARD_BOTANM_WALK, 1
+.equ GUARD_BOTANM_CLIMB, 2
+.equ GUARD_BOTANM_JUMP, 3
+.equ GUARD_BOTANM_SKID, 4
+.equ GUARD_BOTANM_DUCK, 5
+.equ GUARD_BOTANM_CLIMBSTOPPED, 6
+@
+
+Beta legs animations.
+
+<<Constants>>= 
+.equ BETALEGS_BOTANM_STAND,0
+.equ BETALEGS_BOTANM_WALK,1
+.equ BETALEGS_BOTANM_JUMP,2
+.equ BETALEGS_BOTANM_CLIMB,3
+.equ BETALEGS_BOTANM_DUCK,4
+.equ BETALEGS_BOTANM_CLIMBSTOPPED,5
+.equ BETALEGS_BOTANM_SKID,6
+.equ BETALEGS_BOTANM_BLANK,7
+
+@
+
+The general alpha guard offset handler.
+
+<<ARM Routines in ROM>>= 
+	.global offset_guard
+offset_guard:
+	stmfd sp!, {r4-r8,lr}
+
+	mov r6, #0
+	mov r7, #0
+
+	ldr r1, [r0, #ACTRT_STATE]
+
+	@ Here we prep the override register with the appropriate attack
+	@ animation if necessary.
+	ldrb r8, [r1, #GUARDST_ATTACKCTR]
+	cmp r8, #0
+        mov r8, #0
+	beq 1f
+
+	ldrb r2, [r1, #GUARDST_FLAGS]
+	tst r2, #GUARD_FLAG_AIMING_UP
+	movne r8, #GUARD_TOPANM_FIRE_UP
+        tst r2, #GUARD_FLAG_AIMING_DOWN
+        movne r8, #GUARD_TOPANM_FIRE_DOWN
+        cmp r8, #0
+	moveq r8, #GUARD_TOPANM_FIRE_FORE
+        tst r2, #GUARD_FLAG_FIRING_GRENADE
+        movne r8, #GUARD_TOPANM_THROW
+        bal 2f
+
+1:	ldrb r2, [r1, #GUARDST_FLAGS]
+        tst r2, #GUARD_FLAG_AIMING_UP
+        movne r8, #GUARD_TOPANM_AIM_UP
+        tst r2, #GUARD_FLAG_AIMING_DOWN
+        movne r8, #GUARD_TOPANM_AIM_DOWN
+ 
+2:      mov r4, r0
+	mov r0, r1
+
+	@ Update animations
+        ldr r5, [r4, #ACTRT_PARTSPTR]
+        ldrb r3, [r5]
+        cmp r3, #0xff               @ inactive
+        beq 6f
+
+	ldr r3, =actor_segs
+	ldrb r1, [r4, #ACTRT_IDX]
+	add r3, r3, r1, lsl #2
+	ldrh r1, [r3, #ACTSEG_FLOOR]
+
+	ldr r3, =actor_segs
+	ldrb r2, [r4, #ACTRT_IDX]
+	add r3, r3, r2, lsl #2
+	ldrh r2, [r3, #ACTSEG_WALL]
+
+	@ getting hurt, that overrides anything else, and we
+	@ just choose his leg state based on floors and walls.
+	ldrb r3, [r0, #GUARDST_INVULNCTR]
+	cmp r3, #0
+	beq 4f
+
+	cmp r1, #0
+	bne 1f
+	@ in the air
+	two_part_anim_m GUARD_BOTANM_JUMP, GUARD_TOPANM_HIT
+	sub r6, r6, #12
+	bal 6f
+
+	@ on a floor
+1:	two_part_anim_m GUARD_BOTANM_STAND, GUARD_TOPANM_HIT
+	sub r6, r6, #12
+	bal 6f
+
+4:	cmp r1, #0
+	bne 1f
+	cmp r2, #0
+	beq 2f
+
+	@ check the type of the normal, to see if we should be climbing
+	@ or just jumping.
+	ldr r3, =linebank
+	ldr r3, [r3]
+	add r2, r2, r2, lsl #1
+	add r3, r3, r2, lsl #2
+	ldrb r2, [r3, #SEGRT_TYPE]
+	tst r2, #SEGTYPE_FLAG_LADDER
+	beq 2f
+
+	@ freeze his climbing animation if he has no vertical velocity
+	ldrsh r1, [r4, #ACTRT_VY]
+	cmp r1, #0
+	beq 3f
+
+	two_part_anim_m GUARD_BOTANM_CLIMB, GUARD_TOPANM_CLIMB
+	sub r6, r6, #16
+	bal 6f
+
+3:	two_part_anim_m GUARD_BOTANM_CLIMBSTOPPED, GUARD_TOPANM_CLIMBSTOPPED
+	sub r6, r6, #16
+	bal 6f
+
+2:	two_part_anim_with_attack_m GUARD_BOTANM_JUMP, GUARD_TOPANM_JUMP
+	sub r6, r6, #12
+	cmp r8, #0
+	addne r7, r7, #2
+	bal 6f
+
+1:	ldr r3, [r4, #ACTRT_STATE]
+	ldrb r1, [r3, #GUARDST_FLAGS]
+	tst r1, #GUARD_FLAG_DUCK
+	beq 1f
+
+	two_part_anim_with_attack_m GUARD_BOTANM_DUCK, GUARD_TOPANM_STAND
+	sub r6, r6, #8
+	sub r7, r7, #1
+	cmp r8, #0
+	addne r7, r7, #2
+	bal 6f
+
+1:	ldrsh r1, [r4, #ACTRT_AX]
+	cmp r1, #0
+	beq 5f
+	two_part_anim_with_attack_m GUARD_BOTANM_WALK, GUARD_TOPANM_WALK
+	sub r6, r6, #12
+	add r7, r7, #1
+	cmp r8, #0
+        addne r7, r7, #1
+	bal 6f
+
+5:	ldrsh r1, [r4, #ACTRT_VX]
+	cmp r1, #0
+	beq 5f
+
+	two_part_anim_with_attack_m GUARD_BOTANM_SKID, GUARD_TOPANM_SKID
+	sub r6, r6, #12
+	cmp r8, #0
+	subne r7, r7, #1
+	bal 6f
+
+5:	two_part_anim_with_attack_m GUARD_BOTANM_STAND, GUARD_TOPANM_STAND
+	sub r6, r6, #12
+	cmp r8, #0
+	subne r7, r7, #1
+	bal 6f
+
+6:	@ Update offsets.
+	mov r0, #0
+	ldrb r1, [r4, #ACTRT_NPARTS]
+	ldr r3, [r4, #ACTRT_PARTSPTR]
+
+	ldrb r2, [r3]
+	cmp r2, #0xff		    @ ignore the sprite if inactive.
+	beq 0f
+
+	mov r0, #0
+	strb r0, [r3, #2]
+	strb r0, [r3, #3]	    @ offset Y
+	add r3, r3, #4
+
+	ldrb r2, [r3]
+	cmp r2, #0xff
+	beq 0f
+
+	ldrb r2, [r4, #ACTRT_FLAGS]
+	tst r2, #ACTRT_FLAG_FACING
+	rsbne r7, r7, #0
+	strb r7, [r3, #2]	    @ offset X
+	strb r6, [r3, #3]	    @ offset Y
+	strb r7, [r4, #ACTRT_CLIPXOFF]
+	strb r6, [r4, #ACTRT_CLIPYOFF]
+
+	ldr r5, [r4, #ACTRT_STATE]
+	ldrb r2, [r5, #GUARDST_FLAGS]
+	tst r2, #GUARD_FLAG_DUCK
+	beq 1f
+
+	mov r5, #16
+	strb r5, [r4, #ACTRT_CLIPW]
+	mov r6, #16
+	strb r6, [r4, #ACTRT_CLIPH]
+	mov r5, #0
+	strb r5, [r4, #ACTRT_CLIPXOFF]
+	strb r5, [r4, #ACTRT_CLIPYOFF]
+	bal 2f
+
+1:	mov r5, #16
+	strb r5, [r4, #ACTRT_CLIPW]
+	mov r6, #27
+	strb r6, [r4, #ACTRT_CLIPH]
+	mov r5, #0
+	strb r5, [r4, #ACTRT_CLIPXOFF]
+	sub r5, r5, #11
+	strb r5, [r4, #ACTRT_CLIPYOFF]
+
+2:	add r3, r3, #4
+
+0:	ldmfd sp!, {r4-r8,lr}
+	bx lr
+
+        .pool
+        .align
+@
+
+Guard state constants.
+
+<<Constants>>= 
+.equ GUARDST_INVULNCTR, 0
+.equ GUARDST_JUMPCTR, 1
+.equ GUARDST_FLAGS, 2
+.equ GUARDST_ATTACKCTR, 3
+@
+
+<<Constants>>= 
+.equ GUARD_FLAG_ON_LADDER, 16
+.equ GUARD_FLAG_FIRING_GRENADE, 8
+.equ GUARD_FLAG_AIMING_DOWN, 4
+.equ GUARD_FLAG_AIMING_UP, 2
+.equ GUARD_FLAG_DUCK, 1
+@
+
+<<Constants>>= 
+.equ GUARD_WALKACCEL, 32
+.equ GUARD_MAX_ACCELX, 128
+.equ GUARD_JUMPCTR_INIT, 1
+.equ GUARD_JUMPCTR_SHIFT, 7
+.equ GUARD_WALLCTR_SHIFT, 2
+.equ GUARD_JUMP_POWER, 0x800
+.equ GUARD_JUMP_IMPULSE, 0x200
+.equ GUARD_WALL_POWER, 0x300
+.equ GUARD_WALL_VPOWER, 0x300
+.equ GUARD_MAX_LADDER_VELOCITY, 0x100
+
+.equ GUARD_ATTACK_INIT, 8
+.equ GUARD_GRENADE_ATTACK_INIT, 30
+.equ GUARD_ATTACK_BEGIN_LIMIT, GUARD_ATTACK_INIT-6
+.equ GUARD_INVULN_PERIOD, 20
+.equ GUARD_MUZZLEFLASH_LEN, 3
+.equ GUARD_INITIAL_GRENADES, 5
+.equ GUARD_BULLET_DAMAGE, 3
+
+.equ GUARD_BELMONT_VY, 0x200
+.equ GUARD_BELMONT_VX, 0x100
+
+.equ GUARD_GUN_SFX, 0x0618
+.equ GUARD_HIT_SFX, 0x0588
+
+@ General guard helper routines.  XXX If these could be merged with
+Quinn's (maybe via a macro) it would be cool.
+
+<<ARM Routines in ROM>>= 
+guard_jump:
+	ldrsh r2, [r0, #ACTRT_AY]
+	sub r2, r2, #GUARD_JUMP_POWER
+	ldrb r3, [r4, #GUARDST_JUMPCTR]
+	add r2, r2, r3, lsl #GUARD_JUMPCTR_SHIFT
+	strh r2, [r0, #ACTRT_AY]
+	mov r2, #GUARD_JUMP_IMPULSE
+	strh r2, [r0, #ACTRT_VY]
+
+	ldr r5, =actor_segs
+	ldrb r3, [r0, #ACTRT_IDX]
+	add r5, r5, r3, lsl #2
+	mov r2, #0
+	strh r2, [r5, #ACTSEG_FLOOR]
+	bx lr
+
+@ This gets used when a guard jumps off a ladder.
+
+<<ARM Routines in ROM>>= 
+guard_walljump:
+	ldrsh r2, [r0, #ACTRT_AY]
+	sub r2, r2, #GUARD_WALL_VPOWER
+	strh r2, [r0, #ACTRT_AY]
+	mov r2, #GUARD_WALL_POWER
+	ldrb r3, [r4, #GUARDST_JUMPCTR]
+	sub r2, r2, r3, lsl #GUARD_WALLCTR_SHIFT
+
+	mov r3, r8
+	ldr r5, =linebank
+	ldr r5, [r5]
+	add r3, r3, r3, lsl #1
+	add r5, r5, r3, lsl #2
+	ldrb r3, [r5, #SEGRT_TYPE]
+	mov r5, #1
+	tst r3, #SEGTYPE_FLAG_X
+	rsbeq r2, r2, #0
+	rsbeq r5, r5, #0
+	strh r2, [r0, #ACTRT_AX]
+	mov r2, #0
+	strh r2, [r0, #ACTRT_VX]
+
+	ldr r5, =actor_segs
+	ldrb r3, [r0, #ACTRT_IDX]
+	add r5, r5, r3, lsl #2
+	mov r2, #0
+	strh r2, [r5, #ACTSEG_WALL]
+	bx lr
+
+        .pool
+        .align
+
+@ This routine checks if a guard firing has hit anyone.  We do this by
+casting and then limiting a ray in the direction of firing, from the
+guard's gun.  Although this ray is in theory infinite, we limit it to
+about the length of the screen.
+
+Note that this routine is also used by Quinn, so be really careful.
+
+We walk through this list of segments filtering out types we ignore, and
+checking for segments which obstruct the ray.  The first segment which
+obstructs our path to this actor causes an immediate return.  If no
+segments obstruct our path, we call the actor's damage handler.
+
+<<ARM Routines in ROM>>= 
+guard_fire:
+        stmfd sp!, {r4-r10,r12,lr}
+        mov r10, r0
+        <<Determine ray coordinates>>
+        <<Walk the actor list for victims>>
+        <<Check for segment obstructions>>
+        <<Do damage to our hapless victim>>
+9:      ldmfd sp!, {r4-r10,r12,pc}
+
+@ We determine the ray starting position and direction here, much in the
+same way as the muzzle flash code.
+
+<<Determine ray coordinates>>= 
+        ldrh r4, [r10, #ACTRT_X]
+	ldr r3, [r10, #ACTRT_PARTSPTR]
+	add r3, r3, #4
+	ldrsb r2, [r3, #2]
+	add r4, r4, r2
+
+        ldrh r5, [r10, #ACTRT_Y]
+	ldrsb r3, [r3, #3]
+	add r5, r5, r3
+
+	ldrb r3, [r10, #ACTRT_FLAGS]
+	tst r3, #ACTRT_FLAG_FACING
+        subne r4, r4, #6
+        addeq r4, r4, #12
+        mov r6, #1
+        rsbne r6, r6, #0
+
+        ldr r3, [r10, #ACTRT_STATE]
+        ldrb r3, [r3, #GUARDST_FLAGS]
+        tst r3, #GUARD_FLAG_AIMING_UP
+        subne r5, r5, #4
+        tst r3, #GUARD_FLAG_AIMING_DOWN
+        rsbne r6, r6, #0
+        addne r5, r5, #8
+        tst r3, #GUARD_FLAG_AIMING_UP|GUARD_FLAG_AIMING_DOWN
+        moveq r6, #0
+
+@ First we walk through the actor list looking for actors which collide
+with this ray.  If there are none, we return immediately.  If there are
+multiple, we choose the closest one, and then check for segments in
+the path of our ray.
+
+We can almost certainly optimize the ray test here to only check two of
+the four actor segments, but we ignore this optimization for the moment.
+
+<<Walk the actor list for victims>>= 
+        mov r1, #0
+        mov r9, #0
+ @ {
+0:      ldr r0, =alloc_map
+        ldr r0, [r0, r1, lsr #5]
+ @   {
+1:      tst r0, #1
+        beq 5f
+
+        ldr r14, =actor_rt
+        add r14, r14, r1, lsl #5
+
+        @ make sure we're in the same world
+        ldrb r2, [r14, #ACTRT_FLAGS]
+        ldrb r3, [r10, #ACTRT_FLAGS]
+        and r3, r3, #ACTRT_FLAG_WORLD_MASK
+        ands r2, r2, r3
+        beq 5f
+
+        ldrh r2, [r14, #ACTRT_X]
+        ldrh r3, [r14, #ACTRT_Y]
+        ldrsb r7, [r14, #ACTRT_CLIPXOFF]
+        add r2, r2, r7
+        ldrsb r7, [r14, #ACTRT_CLIPYOFF]
+        add r3, r3, r7
+
+	ldrb r7, [r10, #ACTRT_FLAGS]
+	tst r7, #ACTRT_FLAG_FACING
+        subeq r8, r2, r4
+        subne r8, r4, r2
+        cmp r8, #0
+        blt 5f
+
+        @ check their left segment
+        sub r7, r4, r2
+        cmp r6, #0
+        moveq r8, r5
+        subgt r8, r8, r7
+        addlt r8, r8, r7
+        ldrb r7, [r14, #ACTRT_CLIPH]
+        add r7, r7, r3
+        cmp r8, r3
+        cmpge r7, r8
+        bge 3f
+
+        @ check their right segment
+        ldrb r7, [r14, #ACTRT_CLIPW]
+        add r7, r7, r2
+        sub r7, r4, r7
+        cmp r6, #0
+        moveq r8, r5
+        subgt r8, r8, r7
+        addlt r8, r8, r7
+        ldrb r7, [r14, #ACTRT_CLIPH]
+        add r7, r7, r3
+        cmp r8, r3
+        cmpge r7, r8
+        bge 3f
+
+        @ no top and bottom checks for horizontal lines
+        cmp r6, #0
+        beq 5f
+
+        @ check their top segment
+        sub r7, r5, r3
+        cmp r6, #0
+        subgt r8, r7, r4
+        addlt r8, r7, r4
+        rsblt r8, r8, #0
+        ldrb r7, [r14, #ACTRT_CLIPW]
+        add r7, r7, r2
+        cmp r8, r2
+        cmpge r7, r8
+        bge 3f
+
+        @ check their bottom segment
+        ldrb r7, [r14, #ACTRT_CLIPH]
+        add r7, r7, r3
+        sub r7, r5, r7
+        cmp r6, #0
+        subgt r8, r7, r4
+        addlt r8, r7, r4
+        rsblt r8, r8, #0
+        ldrb r7, [r14, #ACTRT_CLIPW]
+        add r7, r7, r2
+        cmp r8, r2
+        cmpge r7, r8
+        @bge 3f
+        @bal 5f
+        blt 5f
+
+        @ collision!
+3:      subs r2, r4, r2
+        rsblt r2, r2, #0
+        subs r3, r5, r3
+        rsblt r3, r3, #0
+        add r7, r2, r3
+        cmp r2, r3
+        sublt r7, r7, r2, lsr #1
+        subge r7, r7, r3, lsr #1
+        cmp r9, #0
+        moveq r12, r7
+        cmp r7, r12
+        bgt 5f
+
+        mov r12, r7
+        mov r9, r14
+
+5:      add r1, r1, #1
+        movs r0, r0, lsr #1
+        bne 1b
+ @   }
+        add r1, r1, #31
+        bic r1, r1, #31
+        cmp r1, #8*32               @ XXX BITMAP_SIZE*32
+        blt 0b
+
+        cmp r9, #0
+        beq 9f
+
+@ Now, we fill the seglist from the start of the ray to the position of
+the actor, looking for segments that might obstruct our progress.
+
+<<Check for segment obstructions>>= 
+        ldrb r0, [r10, #ACTRT_FLAGS]
+        tst r0, #ACTRT_FLAG_WORLD_BETA
+        ldreq r0, =alpha_segtree
+        ldrne r0, =beta_segtree
+        ldr r0, [r0]
+        mov r1, r4
+        mov r3, r5
+
+        ldrh r2, [r9, #ACTRT_X]
+        cmp r1, r2
+        eorgt r1, r1, r2
+        eorgt r2, r1, r2
+        eorgt r1, r1, r2
+
+        ldrh r4, [r9, #ACTRT_Y]
+        cmp r3, r4
+        eorgt r3, r3, r4
+        eorgt r4, r3, r4
+        eorgt r3, r3, r4
+
+        stmfd sp!, {r1-r4}
+        ldr r5, =seglist
+        bl physics_fill_seglist
+        ldmfd sp!, {r1-r4}
+
+@ We walk through the list, filtering initially by type and bounding box.
+
+<<Check for segment obstructions>>= 
+        ldr r14, =seglist
+        ldrh r0, [r14], #2
+        cmp r0, #0
+        beq 8f
+
+0:      ldr r12, =linebank
+        ldr r12, [r12]
+        add r0, r0, r0, lsl #1
+        add r12, r12, r0, lsl #2
+
+        ldrb r0, [r12, #SEGRT_TYPE]
+        tst r0, #SEGTYPE_FLAG_PASS
+        bne 7f
+        tst r0, #SEGTYPE_FLAG_PAINFUL
+        bne 7f
+        tst r0, #SEGTYPE_FLAG_FATAL
+        bne 7f
+
+        ldrh r5, [r12, #SEGRT_X1]
+        ldrh r6, [r12, #SEGRT_X2]
+        cmp r5, r1
+        movlt r5, r1
+        cmp r6, r2
+        movgt r6, r2
+        cmp r6, r5
+        blt 7f
+        ldrh r5, [r12, #SEGRT_Y1]
+        ldrh r6, [r12, #SEGRT_Y2]
+        cmp r5, r3
+        movlt r5, r3
+        cmp r6, r4
+        movgt r6, r4
+        cmp r6, r5
+        blt 7f
+
+        @ XXX should check for actual collision here
+
+        @ collision!  XXX play ricochet sample here
+        bal 9f
+
+7:      ldrh r0, [r14], #2
+        cmp r0, #0
+        bne 0b
+
+8:      cmp r9, #0
+        beq 9f
+
+@ By now, {\bf r9} should contain a nice victim for us.
+
+<<Do damage to our hapless victim>>= 
+        ldrh r2, [r9, #ACTRT_TYPE]
+        mov r2, r2, lsl #1
+        ldr r3, =archetype_table
+        ldrh r2, [r3, r2]
+        add r3, r3, r2, lsl #2
+        add r3, r3, #7
+        ldrb r2, [r3], #1
+        add r3, r3, r2, lsl #3
+        ldr r4, [r3, #16]
+        mov r2, r9
+        mov r0, r10
+        mov r1, #DAMAGE_PIERCE
+        mov r3, #GUARD_BULLET_DAMAGE
+        cmp r4, #0
+        movne lr, pc
+        movne pc, r4
+
+@ Muzzle flash handler.
+
+<<ARM Routines in ROM>>= 
+guard_muzzleflash_handler:
+	stmfd sp!, {r4,lr}
+
+	@ If the counter isn't equal to the anim length,
+	@ skip the initialization parts below and do nothing.
+	cmp r2, #GUARD_MUZZLEFLASH_LEN
+	bne 1f
+
+	ldr r3, =actor_rt
+	add r1, r3, r1, lsl #5
+
+	ldr r4, =sprite_rt
+	add r4, r4, r0, lsl #4
+
+	mov r3, #0x20		    @ priority 1
+	strb r3, [r4, #SPRT_ANIMIDX]
+
+	ldrh r0, [r1, #ACTRT_Y]
+	ldr r2, =camera_y
+	ldrh r2, [r2]
+	sub r0, r0, r2
+	ldr r2, =camera_deltay
+	ldrsb r2, [r2]
+	sub r0, r0, r2
+	ldr r2, [r1, #ACTRT_PARTSPTR]
+	add r2, r2, #4
+	ldrsb r2, [r2, #3]
+	add r0, r0, r2
+
+        ldr r2, [r1, #ACTRT_STATE]
+        ldrb r2, [r2, #GUARDST_FLAGS]
+        add r0, r0, #4
+        tst r2, #GUARD_FLAG_AIMING_UP
+        subne r0, r0, #8
+        tst r2, #GUARD_FLAG_AIMING_DOWN
+        addne r0, r0, #4
+	strb r0, [r4, #SPRT_Y]
+
+	ldrh r0, [r1, #ACTRT_X]
+	ldr r2, =camera_x
+	ldrh r2, [r2]
+	sub r0, r0, r2
+	ldr r2, =camera_deltax
+	ldrsb r2, [r2]
+	sub r0, r0, r2
+	ldr r2, [r1, #ACTRT_PARTSPTR]
+	add r2, r2, #4
+	ldrsb r2, [r2, #2]
+	add r0, r0, r2
+	ldrb r2, [r1, #ACTRT_FLAGS]
+	tst r2, #ACTRT_FLAG_FACING
+        subne r0, r0, #6
+        addeq r0, r0, #12
+	strh r0, [r4, #SPRT_X]
+
+	ldrb r0, [r4, #SPRT_XFLAGS]
+	ldrb r2, [r1, #ACTRT_FLAGS]
+	tst r2, #ACTRT_FLAG_FACING
+	orrne r0, r0, #0b1000
+	biceq r0, r0, #0b1000
+	strb r0, [r4, #SPRT_XFLAGS]
+	bal 9f
+
+1:
+9:      ldmfd sp!, {r4, pc}
+
+@ Guard damage handler.  This needs to be enhanced to work with their
+AI.  It is not shared with Billy.
+
+<<ARM Routines in ROM>>= 
+        .global damage_guard
+damage_guard:
+	stmfd sp!, {r4-r5,lr}
+	mov r5, r3
+
+	cmp r0, #0xff
+	moveq r4, #0
+	ldrne r4, =actor_rt
+	addne r4, r4, r0, lsl #5
+
+	@ invulnerability counter
+	ldr r3, [r2, #ACTRT_STATE]
+	ldrb r0, [r3, #GUARDST_INVULNCTR]
+	cmp r0, #0
+	bne 1f
+	mov r0, #GUARD_INVULN_PERIOD
+	strb r0, [r3, #GUARDST_INVULNCTR]
+
+	stmfd sp!, {r0-r3}
+	ldrb r0, [r2, #ACTRT_HEALTH]
+	subs r0, r0, r5
+        movlt r0, #0
+	strb r0, [r2, #ACTRT_HEALTH]
+
+        @ knock him off a wall etc
+	mov r0, #0
+	strb r0, [r3, #GUARDST_ATTACKCTR]
+	strb r0, [r3, #GUARDST_JUMPCTR]
+
+	@ Belmont hit
+	ldrsh r0, [r2, #ACTRT_VY]
+	cmp r0, #0
+	subge r0, r0, #GUARD_BELMONT_VY
+	strgeh r0, [r2, #ACTRT_VY]
+
+	ldrh r0, [r2, #ACTRT_X]
+	cmp r4, #0
+	beq 2f
+	ldrh r1, [r4, #ACTRT_X]
+	cmp r0, r1
+	bgt 4f
+	blt 5f
+
+2:	ldrb r1, [r2, #ACTRT_FLAGS]
+	tst r1, #ACTRT_FLAG_FACING
+	ldrsh r0, [r2, #ACTRT_VX]
+	subeq r0, r0, #GUARD_BELMONT_VX
+	addne r0, r0, #GUARD_BELMONT_VX
+	strh r0, [r2, #ACTRT_VX]
+	bal 3f
+
+4:	ldrsh r0, [r2, #ACTRT_VX]
+	add r0, r0, #GUARD_BELMONT_VX
+	strh r0, [r2, #ACTRT_VX]
+	bal 3f
+
+5:	ldrsh r0, [r2, #ACTRT_VX]
+	sub r0, r0, #GUARD_BELMONT_VX
+	strh r0, [r2, #ACTRT_VX]
+
+3:      @ make noise
+        mov r0, #CHAN_NOISE
+        mov r1, #0
+        ldr r2, =GUARD_HIT_SFX
+        bl music_play_sfx
+
+	ldmfd sp!, {r0-r3}
+1:
+
+	ldmfd sp!, {r4-r5,pc}
+
+        .pool
+        .align
+
+@
+\section{Billy}
+
+Billy uses almost exclusively general guard constants and routines.
+Only his human handler and damage handler are different, currently.
+
+<<ARM Routines in ROM>>= 
+        .global human_billy
+human_billy:
+	stmfd sp!, {r4-r8,lr}
+
+	ldr r4, [r0, #ACTRT_STATE]
+
+	ldr r1, =actor_segs
+	ldrb r3, [r0, #ACTRT_IDX]
+	add r1, r1, r3, lsl #2
+	ldrh r7, [r1, #ACTSEG_FLOOR]
+	ldrh r8, [r1, #ACTSEG_WALL]
+
+	cmp r8, #0
+	beq 8f
+
+	ldr r3, =linebank
+	ldr r3, [r3]
+	add r1, r8, r8, lsl #1
+	add r3, r3, r1, lsl #2
+	ldrb r1, [r3, #SEGRT_TYPE]
+	ldrb r2, [r0, #ACTRT_FLAGS]
+	tst r1, #SEGTYPE_FLAG_X
+	bicne r2, r2, #1
+	orreq r2, r2, #1
+	tst r1, #SEGTYPE_FLAG_LADDER
+	eorne r2, r2, #1
+	strneb r2, [r0, #ACTRT_FLAGS]
+
+	@ if we're on a ladder, deal with controls differently.
+	tst r1, #SEGTYPE_FLAG_LADDER
+	beq 8f
+
+        ldrb r3, [r4, #GUARDST_FLAGS]
+        orr r3, r3, #GUARD_FLAG_ON_LADDER
+        strb r3, [r4, #GUARDST_FLAGS]
+
+	ldr r1, =REG_KEY
+	ldrh r1, [r1]
+
+	tst r1, #KEY_UP
+	bne 1f
+
+	mov r2, #0
+	sub r2, r2, #GUARD_WALKACCEL>>1
+	sub r2, r2, #GRAVITY
+	strh r2, [r0, #ACTRT_AY]
+	bal 2f
+
+1:	tst r1, #KEY_DOWN
+	bne 1f
+
+	mov r2, #0
+	add r2, r2, #GUARD_WALKACCEL>>1
+	strh r2, [r0, #ACTRT_AY]
+	bal 2f
+
+1:	mov r2, #0
+	strh r2, [r0, #ACTRT_AY]
+	mov r2, #0
+	strh r2, [r0, #ACTRT_VY]
+
+2:	tst r1, #KEY_A
+	bne 1f
+
+	ldr r2, =debounce
+	ldrh r2, [r2]
+	tst r2, #KEY_A		    @ debounce
+	bne 4f
+
+	ldrb r3, [r4, #GUARDST_JUMPCTR]
+	cmp r3, #0
+	moveq r3, #GUARD_JUMPCTR_INIT
+	streqb r3, [r4, #GUARDST_JUMPCTR]
+        bal 4f
+
+1:	ldrb r3, [r4, #GUARDST_JUMPCTR]
+	cmp r3, #0
+	beq 4f
+
+	bl guard_walljump
+	mov r3, #0
+	strb r3, [r4, #GUARDST_JUMPCTR]
+
+4:	tst r1, #KEY_B
+	ldreq r2, =debounce
+	ldreqh r2, [r2]
+	tsteq r2, #KEY_B
+	bne 1f
+
+	@ attack?
+
+1:	ldrsh r2, [r0, #ACTRT_VY]
+	mov r3, #GUARD_MAX_LADDER_VELOCITY
+	cmp r2, r3
+	rsblt r3, r3, #0
+	cmplt r3, r2
+	movgt r2, r3
+	strh r2, [r0, #ACTRT_VY]
+
+	bal 9f
+
+	@ Not on a ladder.
+8:	ldrb r3, [r4, #GUARDST_FLAGS]
+        bic r3, r3, #GUARD_FLAG_ON_LADDER
+        strb r3, [r4, #GUARDST_FLAGS]
+
+        ldr r1, =REG_KEY
+	ldrh r1, [r1]
+
+	tst r2, #GUARD_FLAG_DUCK
+	bne 3f
+
+	tst r1, #KEY_RIGHT
+	bne 1f
+
+	ldrb r2, [r0, #ACTRT_FLAGS]
+	bic r2, r2, #1		    @ face right
+	strb r2, [r0, #ACTRT_FLAGS]
+
+	@ if we have something to push against...
+	cmp r7, #0
+	beq 1f
+	ldrsh r2, [r0, #ACTRT_AX]
+	add r2, r2, #GUARD_WALKACCEL
+	strh r2, [r0, #ACTRT_AX]
+	bal 2f
+
+1:	tst r1, #KEY_LEFT
+	bne 1f
+
+	ldrb r2, [r0, #ACTRT_FLAGS]
+	orr r2, r2, #1		    @ face left
+	strb r2, [r0, #ACTRT_FLAGS]
+
+	@ If we have something to push against...
+	cmp r7, #0
+	beq 1f
+	ldrsh r2, [r0, #ACTRT_AX]
+	sub r2, r2, #GUARD_WALKACCEL
+	strh r2, [r0, #ACTRT_AX]
+	bal 2f
+
+1:	mov r2, #0
+	strh r2, [r0, #ACTRT_AX]
+
+	@ XXX slope selection here
+2:	tst r1, #KEY_UP
+	bne 1f
+
+        ldrb r2, [r4, #GUARDST_FLAGS]
+        orr r2, r2, #GUARD_FLAG_AIMING_UP
+        bic r2, r2, #GUARD_FLAG_AIMING_DOWN
+        strb r2, [r4, #GUARDST_FLAGS]
+        bal 2f
+
+1:      cmp r7, #0
+        bne 3f
+        tst r1, #KEY_DOWN
+        bne 1f
+
+        ldrb r2, [r4, #GUARDST_FLAGS]
+        bic r2, r2, #GUARD_FLAG_AIMING_UP
+        orr r2, r2, #GUARD_FLAG_AIMING_DOWN
+        strb r2, [r4, #GUARDST_FLAGS]
+        bal 2f
+
+1:      ldrb r2, [r4, #GUARDST_FLAGS]
+        bic r2, r2, #GUARD_FLAG_AIMING_UP
+        bic r2, r2, #GUARD_FLAG_AIMING_DOWN
+        strb r2, [r4, #GUARDST_FLAGS]
+        bal 2f
+
+3:	ldrb r2, [r4, #GUARDST_FLAGS]
+        bic r2, r2, #GUARD_FLAG_AIMING_UP
+        bic r2, r2, #GUARD_FLAG_AIMING_DOWN
+        strb r2, [r4, #GUARDST_FLAGS]
+
+        @ duck
+        tst r1, #KEY_DOWN
+	bne 2f
+
+	ldrb r2, [r4, #GUARDST_FLAGS]
+	orr r2, r2, #GUARD_FLAG_DUCK
+	strb r2, [r4, #GUARDST_FLAGS]
+	mov r2, #0
+	strh r2, [r0, #ACTRT_AX]
+	bal 1f
+
+2:	ldrb r2, [r4, #GUARDST_FLAGS]
+	bic r2, r2, #GUARD_FLAG_DUCK
+	strb r2, [r4, #GUARDST_FLAGS]
+	@ XXX check for obstructions when standing up, here.
+
+1:	mov r2, #0
+	strh r2, [r0, #ACTRT_AY]
+
+1:	tst r1, #KEY_A
+	bne 1f
+
+	ldr r2, =debounce
+	ldrh r2, [r2]
+	tst r2, #KEY_A
+	bne 4f
+
+	@ Jump, if we're not already in the air.
+	cmp r7, #0
+	beq 2f
+	ldrb r3, [r4, #GUARDST_JUMPCTR]
+	cmp r3, #0
+        bne 4f
+	mov r3, #GUARD_JUMPCTR_INIT
+	strb r3, [r4, #GUARDST_JUMPCTR]
+        bal 4f
+
+2:	mov r3, #0
+	strb r3, [r4, #GUARDST_JUMPCTR]
+	bal 4f
+
+	@ no A button
+1:	ldrb r3, [r4, #GUARDST_JUMPCTR]
+	cmp r3, #0
+	beq 4f
+
+        @ jump
+	bl guard_jump
+	mov r3, #0
+	strb r3, [r4, #GUARDST_JUMPCTR]
+
+	@ Attack...
+4:	tst r1, #KEY_B
+	bne 9f
+
+        @ check whether we're firing a grenade or a shot
+        tst r1, #KEY_TRIGGER_R
+        beq 4f
+
+	@ check our attack counter...  if we are already attacking, and
+	@ the beginning time limit has passed, spawn another shot.
+	ldrb r2, [r4, #GUARDST_ATTACKCTR]
+	cmp r2, #GUARD_ATTACK_BEGIN_LIMIT
+	bgt 9f
+
+        @ Force animation to reset
+        ldr r2, [r0, #ACTRT_PARTSPTR]
+        ldrb r2, [r2, #4]
+        cmp r2, #0xff
+        beq 3f
+
+        ldr r3, =sprite_rt
+        add r3, r3, r2, lsl #4
+        mov r2, #0
+        strb r2, [r3, #SPRT_FRAMEIDX]
+        mov r2, #6
+        strb r2, [r3, #SPRT_COUNTER]
+
+3:     	mov r2, #GUARD_ATTACK_INIT
+	strb r2, [r4, #GUARDST_ATTACKCTR]
+
+	@ spawn muzzle flash ephemeral
+	stmfd sp!, {r0,r1,r4}
+	ldrb r2, [r0, #ACTRT_IDX]
+	ldr r0, =muzzleflash_spr
+	ldr r1, =guard_muzzleflash_handler
+	mov r3, #GUARD_MUZZLEFLASH_LEN
+        mov r4, #PAL_FIRE
+	bl ephemeral_spawn
+        mov r0, #CHAN_NOISE
+        mov r1, #0
+        ldr r2, =GUARD_GUN_SFX
+        bl music_play_sfx
+	ldmfd sp!, {r0,r1,r4}
+
+        @ check if we hit anything
+	stmfd sp!, {r0,r1,r4}
+        bl guard_fire
+	ldmfd sp!, {r0,r1,r4}
+        bal 9f
+
+        @ Grenade!
+        @ no grenades while attackctr > 0
+4:      ldrb r2, [r4, #GUARDST_ATTACKCTR]
+	cmp r2, #0
+	bgt 9f
+
+        @ XXX check ammo here
+
+        mov r2, #GUARD_GRENADE_ATTACK_INIT
+        strb r2, [r4, #GUARDST_ATTACKCTR]
+        ldrb r2, [r4, #GUARDST_FLAGS]
+        orr r2, r2, #GUARD_FLAG_FIRING_GRENADE
+        strb r2, [r4, #GUARDST_FLAGS]
+
+        @ XXX spawn grenade
+
+9:	@ Save debounce
+	mvn r1, r1
+	ldr r2, =debounce
+	strh r1, [r2]
+
+	@ Limit acceleration.
+	ldrsh r2, [r0, #ACTRT_AX]
+	mov r3, #GUARD_MAX_ACCELX	    @ XXX base on speed?
+	cmp r2, r3
+	movgt r2, r3
+	rsb r3, r3, #0
+	cmp r2, r3
+	movlt r2, r3
+	strh r2, [r0, #ACTRT_AX]
+
+	@ update attack counter.
+	ldrb r2, [r4, #GUARDST_ATTACKCTR]
+        ldrb r3, [r4, #GUARDST_FLAGS]
+	cmp r2, #0
+	subgt r2, r2, #1
+	strgtb r2, [r4, #GUARDST_ATTACKCTR]
+        bicle r3, r3, #GUARD_FLAG_FIRING_GRENADE
+        strleb r3, [r4, #GUARDST_FLAGS]
+
+	@ Decrement invulnerability.
+	ldrb r2, [r4, #GUARDST_INVULNCTR]
+	cmp r2, #0
+	subgt r2, r2, #1
+	strgtb r2, [r4, #GUARDST_INVULNCTR]
+
+	@ Check for death.
+	ldrb r2, [r0, #ACTRT_HEALTH]
+	cmp r2, #0
+	bgt 1f
+
+	@ ``Dead?!''
+        @           ``Dead, deceased, y'know, rigor mortis, habeas corpus''
+	ldrb r3, [r0, #ACTRT_FLAGS]
+	bic r3, r3, #ACTRT_FLAG_ALIVE
+	strb r3, [r0, #ACTRT_FLAGS]
+
+1:	@ update jump counter.
+	ldrb r2, [r4, #GUARDST_JUMPCTR]
+	cmp r2, #1
+	blt 7f
+	subs r2, r2, #1
+	strb r2, [r4, #GUARDST_JUMPCTR]
+	bne 7f
+        ldrb r3, [r4, #GUARDST_FLAGS]
+        tst r3, #GUARD_FLAG_ON_LADDER
+        bne 2f
+	bl guard_jump
+        bal 7f
+2:      bl guard_walljump
+
+7:	ldmfd sp!, {r4-r8,pc}
+
+@
+<<ARM Routines in ROM>>= 
+        .global damage_billy
+damage_billy:
+	stmfd sp!, {r4-r5,lr}
+	mov r5, r3
+
+	cmp r0, #0xff
+	moveq r4, #0
+	ldrne r4, =actor_rt
+	addne r4, r4, r0, lsl #5
+
+	@ invulnerability counter
+	ldr r3, [r2, #ACTRT_STATE]
+	ldrb r0, [r3, #GUARDST_INVULNCTR]
+	cmp r0, #0
+	bne 1f
+	mov r0, #GUARD_INVULN_PERIOD
+	strb r0, [r3, #GUARDST_INVULNCTR]
+
+	stmfd sp!, {r0-r3}
+	ldrb r0, [r2, #ACTRT_HEALTH]
+	subs r0, r0, r5
+        movlt r0, #0
+	strb r0, [r2, #ACTRT_HEALTH]
+
+        @ knock him off a wall etc
+	mov r0, #0
+	strb r0, [r3, #GUARDST_ATTACKCTR]
+	strb r0, [r3, #GUARDST_JUMPCTR]
+
+	@ Belmont hit
+	ldrsh r0, [r2, #ACTRT_VY]
+	cmp r0, #0
+	subge r0, r0, #GUARD_BELMONT_VY
+	strgeh r0, [r2, #ACTRT_VY]
+
+	ldrh r0, [r2, #ACTRT_X]
+	cmp r4, #0
+	beq 2f
+	ldrh r1, [r4, #ACTRT_X]
+	cmp r0, r1
+	bgt 4f
+	blt 5f
+
+2:	ldrb r1, [r2, #ACTRT_FLAGS]
+	tst r1, #ACTRT_FLAG_FACING
+	ldrsh r0, [r2, #ACTRT_VX]
+	subeq r0, r0, #GUARD_BELMONT_VX
+	addne r0, r0, #GUARD_BELMONT_VX
+	strh r0, [r2, #ACTRT_VX]
+	bal 3f
+
+4:	ldrsh r0, [r2, #ACTRT_VX]
+	add r0, r0, #GUARD_BELMONT_VX
+	strh r0, [r2, #ACTRT_VX]
+	bal 3f
+
+5:	ldrsh r0, [r2, #ACTRT_VX]
+	sub r0, r0, #GUARD_BELMONT_VX
+	strh r0, [r2, #ACTRT_VX]
+
+3:      @ make noise
+        mov r0, #CHAN_NOISE
+        mov r1, #0
+        ldr r2, =GUARD_HIT_SFX
+        bl music_play_sfx
+
+	ldmfd sp!, {r0-r3}
+1:
+
+	ldmfd sp!, {r4-r5,pc}
+
+@
+
+\section{Quinn}
+
+Quinn's state constants.  The flags byte must be in the same position as
+[[GUARDST_FLAGS]].
+
+<<Constants>>= 
+.equ QUINNST_INVULNCTR, 0
+.equ QUINNST_JUMPCTR, 1
+.equ QUINNST_FLAGS, 2
+.equ QUINNST_ATTACKCTR, 3
+.equ QUINNST_AMMO, 4
+
+@ The breakdown of the flags: (aiming up and aiming down should be in
+the same place as for guards)
+
+<<Constants>>= 
+.equ QUINN_FLAG_ON_LADDER, 64
+.equ QUINN_FLAG_RELOADING, 32
+.equ QUINN_FLAG_FIRING_GRENADE, 16
+.equ QUINN_FLAG_SLIDING, 8
+.equ QUINN_FLAG_AIMING_DOWN, 4
+.equ QUINN_FLAG_AIMING_UP, 2
+.equ QUINN_FLAG_DUCK, 1
+
+@ Quinn's physical constants.  The cautions in the sam module apply
+here, too.  Quinn's wall constants are only used for ladders.
+
+<<Constants>>= 
+.equ QUINN_WALKACCEL, 32
+.equ QUINN_MAX_ACCELX, 128
+.equ QUINN_JUMPCTR_INIT, 1
+.equ QUINN_JUMPCTR_SHIFT, 7
+.equ QUINN_WALLCTR_SHIFT, 2
+.equ QUINN_JUMP_POWER, 0x800
+.equ QUINN_JUMP_IMPULSE, 0x200
+.equ QUINN_WALL_POWER, 0x300
+.equ QUINN_WALL_VPOWER, 0x300
+.equ QUINN_MAX_LADDER_VELOCITY, 0x100
+.equ QUINN_SLIDE_INIT, 20
+.equ QUINN_SLIDEVX, 0x300
+
+.equ QUINN_ATTACK_INIT, 36
+.equ QUINN_GRENADE_ATTACK_INIT, 18
+.equ QUINN_ATTACK_BEGIN_LIMIT, QUINN_ATTACK_INIT-12
+.equ QUINN_INVULN_PERIOD, 20
+.equ QUINN_MUZZLEFLASH_LEN, 3
+.equ QUINN_INITIAL_BULLETS, 10
+.equ QUINN_INITIAL_GRENADES, 5
+
+.equ QUINN_BELMONT_VY, 0x200
+.equ QUINN_BELMONT_VX, 0x100
+
+.equ QUINN_PISTOL_SFX, 0x05d8
+.equ QUINN_HIT_SFX, 0x0588
+.equ QUINN_SLIDE_SFX, 0x0648
+
+@ Quinn's animation constants.  His bottom animations are shared with
+beta guards.
+
+<<Constants>>= 
+.equ QUINN_TOPANM_STAND, 0
+.equ QUINN_TOPANM_WALK, 1
+.equ QUINN_TOPANM_JUMP, 2
+.equ QUINN_TOPANM_FIRE_FORE, 3
+.equ QUINN_TOPANM_AIM_UP, 4
+.equ QUINN_TOPANM_FIRE_UP, 5
+.equ QUINN_TOPANM_HIT, 6
+.equ QUINN_TOPANM_CLIMB, 7
+.equ QUINN_TOPANM_CLIMBSTOPPED, 8
+.equ QUINN_TOPANM_THROW, 9
+.equ QUINN_TOPANM_SLIDE, 10
+.equ QUINN_TOPANM_SKID, 11
+.equ QUINN_TOPANM_RELOAD, 12
+.equ QUINN_TOPANM_AIM_DOWN, 13
+.equ QUINN_TOPANM_FIRE_DOWN, 14
+
+@ {\em EVIL} debounce! XXX
+
+<<EWRAM Variables>>= 
+debounce: .skip 2
+.align
+
+@
+
+<<ARM Routines in ROM>>= 
+        .global human_quinn
+human_quinn:
+	stmfd sp!, {r4-r8,lr}
+
+	ldr r4, [r0, #ACTRT_STATE]
+
+	ldr r1, =actor_segs
+	ldrb r3, [r0, #ACTRT_IDX]
+	add r1, r1, r3, lsl #2
+	ldrh r7, [r1, #ACTSEG_FLOOR]
+	ldrh r8, [r1, #ACTSEG_WALL]
+
+	ldrb r2, [r4, #QUINNST_FLAGS]
+        tst r2, #QUINN_FLAG_SLIDING
+        beq 1f
+
+        @ Sliding overrides all other things.
+        ldrb r3, [r0, #ACTRT_FLAGS]
+        tst r3, #ACTRT_FLAG_FACING
+        mov r3, #QUINN_SLIDEVX
+        rsbne r3, r3, #0
+        strh r3, [r0, #ACTRT_VX]
+
+        ldrb r3, [r4, #QUINNST_JUMPCTR]
+        cmp r3, #0
+        bge 9f
+
+        ldrb r3, [r4, #QUINNST_FLAGS]
+        @ ... XXX what else goes here?  checking if Quinn _can_ stand
+        @ up, as if he can't, we must make him continue to slide.
+        bic r3, r3, #QUINN_FLAG_SLIDING
+        strb r3, [r4, #QUINNST_FLAGS]
+        bal 9f
+
+1:	cmp r8, #0
+	beq 8f
+
+	ldr r3, =linebank
+	ldr r3, [r3]
+	add r1, r8, r8, lsl #1
+	add r3, r3, r1, lsl #2
+	ldrb r1, [r3, #SEGRT_TYPE]
+	ldrb r2, [r0, #ACTRT_FLAGS]
+	tst r1, #SEGTYPE_FLAG_X
+	bicne r2, r2, #1
+	orreq r2, r2, #1
+	tst r1, #SEGTYPE_FLAG_LADDER
+	eorne r2, r2, #1
+	strneb r2, [r0, #ACTRT_FLAGS]
+
+	@ if we're on a ladder, deal with controls differently.
+	tst r1, #SEGTYPE_FLAG_LADDER
+	beq 8f
+
+        ldrb r3, [r4, #QUINNST_FLAGS]
+        orr r3, r3, #QUINN_FLAG_ON_LADDER
+        strb r3, [r4, #QUINNST_FLAGS]
+
+	ldr r1, =REG_KEY
+	ldrh r1, [r1]
+
+	tst r1, #KEY_UP
+	bne 1f
+
+	mov r2, #0
+	sub r2, r2, #QUINN_WALKACCEL>>1
+	sub r2, r2, #GRAVITY
+	strh r2, [r0, #ACTRT_AY]
+	bal 2f
+
+1:	tst r1, #KEY_DOWN
+	bne 1f
+
+	mov r2, #0
+	add r2, r2, #QUINN_WALKACCEL>>1
+	strh r2, [r0, #ACTRT_AY]
+	bal 2f
+
+1:	mov r2, #0
+	strh r2, [r0, #ACTRT_AY]
+	mov r2, #0
+	strh r2, [r0, #ACTRT_VY]
+
+2:	tst r1, #KEY_A
+	bne 1f
+
+	ldr r2, =debounce
+	ldrh r2, [r2]
+	tst r2, #KEY_A		    @ debounce
+	bne 4f
+
+	ldrb r3, [r4, #QUINNST_JUMPCTR]
+	cmp r3, #0
+	moveq r3, #QUINN_JUMPCTR_INIT
+	streqb r3, [r4, #QUINNST_JUMPCTR]
+        bal 4f
+
+1:	ldrb r3, [r4, #QUINNST_JUMPCTR]
+	cmp r3, #0
+	beq 4f
+
+	bl quinn_walljump
+	mov r3, #0
+	strb r3, [r4, #QUINNST_JUMPCTR]
+
+4:	tst r1, #KEY_B
+	ldreq r2, =debounce
+	ldreqh r2, [r2]
+	tsteq r2, #KEY_B
+	bne 1f
+
+	@ attack?
+
+1:	ldrsh r2, [r0, #ACTRT_VY]
+	mov r3, #QUINN_MAX_LADDER_VELOCITY
+	cmp r2, r3
+	rsblt r3, r3, #0
+	cmplt r3, r2
+	movgt r2, r3
+	strh r2, [r0, #ACTRT_VY]
+
+	bal 9f
+
+	@ Not on a ladder.
+8:	ldrb r3, [r4, #QUINNST_FLAGS]
+        bic r3, r3, #QUINN_FLAG_ON_LADDER
+        strb r3, [r4, #QUINNST_FLAGS]
+
+        ldr r1, =REG_KEY
+	ldrh r1, [r1]
+
+	tst r2, #QUINN_FLAG_DUCK
+	bne 3f
+
+	tst r1, #KEY_RIGHT
+	bne 1f
+
+	ldrb r2, [r0, #ACTRT_FLAGS]
+	bic r2, r2, #1		    @ face right
+	strb r2, [r0, #ACTRT_FLAGS]
+
+	@ if we have something to push against...
+	cmp r7, #0
+	beq 1f
+	ldrsh r2, [r0, #ACTRT_AX]
+	add r2, r2, #QUINN_WALKACCEL
+	strh r2, [r0, #ACTRT_AX]
+	bal 2f
+
+1:	tst r1, #KEY_LEFT
+	bne 1f
+
+	ldrb r2, [r0, #ACTRT_FLAGS]
+	orr r2, r2, #1		    @ face left
+	strb r2, [r0, #ACTRT_FLAGS]
+
+	@ If we have something to push against...
+	cmp r7, #0
+	beq 1f
+	ldrsh r2, [r0, #ACTRT_AX]
+	sub r2, r2, #QUINN_WALKACCEL
+	strh r2, [r0, #ACTRT_AX]
+	bal 2f
+
+1:	mov r2, #0
+	strh r2, [r0, #ACTRT_AX]
+
+	@ XXX slope selection here
+2:	tst r1, #KEY_UP
+	bne 1f
+
+        ldrb r2, [r4, #QUINNST_FLAGS]
+        orr r2, r2, #QUINN_FLAG_AIMING_UP
+        bic r2, r2, #QUINN_FLAG_AIMING_DOWN
+        strb r2, [r4, #QUINNST_FLAGS]
+        bal 2f
+
+1:      cmp r7, #0
+        bne 3f
+        tst r1, #KEY_DOWN
+        bne 1f
+
+        ldrb r2, [r4, #QUINNST_FLAGS]
+        orr r2, r2, #QUINN_FLAG_AIMING_DOWN
+        bic r2, r2, #QUINN_FLAG_AIMING_UP
+        strb r2, [r4, #QUINNST_FLAGS]
+        bal 2f
+
+1:	ldrb r2, [r4, #QUINNST_FLAGS]
+        bic r2, r2, #QUINN_FLAG_AIMING_UP
+        bic r2, r2, #QUINN_FLAG_AIMING_DOWN
+        strb r2, [r4, #QUINNST_FLAGS]
+        bal 2f
+
+3:      ldrb r2, [r4, #QUINNST_FLAGS]
+        bic r2, r2, #QUINN_FLAG_AIMING_UP
+        bic r2, r2, #QUINN_FLAG_AIMING_DOWN
+        strb r2, [r4, #QUINNST_FLAGS]
+
+        @ duck
+        tst r1, #KEY_DOWN
+	bne 2f
+
+	ldrb r2, [r4, #QUINNST_FLAGS]
+	orr r2, r2, #QUINN_FLAG_DUCK
+	strb r2, [r4, #QUINNST_FLAGS]
+	mov r2, #0
+	strh r2, [r0, #ACTRT_AX]
+	bal 1f
+
+2:	ldrb r2, [r4, #QUINNST_FLAGS]
+	bic r2, r2, #QUINN_FLAG_DUCK
+	strb r2, [r4, #QUINNST_FLAGS]
+	@ XXX check for obstructions when standing up, here.
+
+1:	mov r2, #0
+	strh r2, [r0, #ACTRT_AY]
+
+1:	tst r1, #KEY_A
+	bne 1f
+
+	ldr r2, =debounce
+	ldrh r2, [r2]
+	tst r2, #KEY_A
+	bne 4f
+
+	@ Jump, if we're not already in the air.
+	cmp r7, #0
+	beq 2f
+	ldrb r3, [r4, #QUINNST_JUMPCTR]
+	cmp r3, #0
+        bne 4f
+	mov r3, #QUINN_JUMPCTR_INIT
+	strb r3, [r4, #QUINNST_JUMPCTR]
+        @ Try to slide...
+        tst r1, #KEY_DOWN
+        bne 4f
+        cmp r7, #0
+        beq 4f
+
+        mov r3, #QUINN_SLIDE_INIT
+        strb r3, [r4, #QUINNST_JUMPCTR]
+        ldrb r3, [r4, #QUINNST_FLAGS]
+        orr r3, r3, #QUINN_FLAG_SLIDING
+        strb r3, [r4, #QUINNST_FLAGS]
+        @ play slide sound effect
+        stmfd sp!, {r0,r1}
+        mov r0, #CHAN_NOISE
+        mov r1, #0
+        ldr r2, =QUINN_SLIDE_SFX
+        bl music_play_sfx
+        ldmfd sp!, {r0,r1}
+	bal 4f
+
+2:	mov r3, #0
+	strb r3, [r4, #QUINNST_JUMPCTR]
+	bal 4f
+
+	@ no A button
+1:	ldrb r3, [r4, #QUINNST_JUMPCTR]
+	cmp r3, #0
+	beq 4f
+
+        @ jump
+	bl quinn_jump
+	mov r3, #0
+	strb r3, [r4, #QUINNST_JUMPCTR]
+
+4:	@ if we're out of bullets, force a reload.
+        ldrb r3, [r4, #QUINNST_AMMO]
+        and r3, r3, #0xf
+        cmp r3, #0
+        beq 2f
+
+        ldr r2, =debounce
+	ldrh r2, [r2]
+	tst r1, #KEY_B
+	tsteq r2, #KEY_B
+	bne 1f
+
+	@ Attack...
+        @ no attack while reloading
+        ldrb r3, [r4, #QUINNST_FLAGS]
+        tst r3, #QUINN_FLAG_RELOADING
+        bne 1f
+
+        @ check whether we're firing a grenade or a shot
+        tst r1, #KEY_TRIGGER_R
+        beq 4f
+
+	@ check our attack counter...  if we are already attacking, and
+	@ the beginning time limit has passed, spawn another shot.
+	ldrb r2, [r4, #QUINNST_ATTACKCTR]
+	cmp r2, #QUINN_ATTACK_BEGIN_LIMIT
+	bgt 1f
+
+        @ Force animation to reset
+        ldr r2, [r0, #ACTRT_PARTSPTR]
+        ldrb r2, [r2, #4]
+        cmp r2, #0xff
+        beq 3f
+
+        ldr r3, =sprite_rt
+        add r3, r3, r2, lsl #4
+        mov r2, #0
+        strb r2, [r3, #SPRT_FRAMEIDX]
+        mov r2, #6
+        strb r2, [r3, #SPRT_COUNTER]
+
+3:      ldrb r3, [r4, #QUINNST_AMMO]
+        and r2, r3, #0xf
+        sub r2, r2, #1
+        bic r3, r3, #0xf
+        orr r3, r3, r2
+        strb r3, [r4, #QUINNST_AMMO]
+
+	mov r2, #QUINN_ATTACK_INIT
+	strb r2, [r4, #QUINNST_ATTACKCTR]
+
+	@ spawn muzzle flash ephemeral
+	stmfd sp!, {r0,r1,r4}
+	ldrb r2, [r0, #ACTRT_IDX]
+	ldr r0, =muzzleflash_spr
+	ldr r1, =quinn_muzzleflash_handler
+	mov r3, #QUINN_MUZZLEFLASH_LEN
+        mov r4, #PAL_FIRE
+	bl ephemeral_spawn
+        @ make some noise!
+        mov r0, #CHAN_NOISE
+        mov r1, #0
+        ldr r2, =QUINN_PISTOL_SFX
+        bl music_play_sfx
+	ldmfd sp!, {r0,r1,r4}
+
+        @ try to do damage
+	stmfd sp!, {r0,r1,r4}
+        bl guard_fire
+	ldmfd sp!, {r0,r1,r4}
+        bal 9f
+
+        @ Grenade!
+        @ no grenades while attackctr > 0
+4:      ldrb r2, [r4, #QUINNST_ATTACKCTR]
+	cmp r2, #0
+	bgt 1f
+
+        ldrb r3, [r4, #QUINNST_AMMO]
+        mov r2, r3, lsr #4
+        subs r2, r2, #1
+        @ XXX play click here to indicate no more grenades
+        blt 1f
+        bic r3, r3, #0xf0
+        orr r3, r3, r2, lsl #4
+        strb r3, [r4, #QUINNST_AMMO]
+
+        mov r2, #QUINN_GRENADE_ATTACK_INIT
+        strb r2, [r4, #QUINNST_ATTACKCTR]
+        ldrb r2, [r4, #QUINNST_FLAGS]
+        orr r2, r2, #QUINN_FLAG_FIRING_GRENADE
+        strb r2, [r4, #QUINNST_FLAGS]
+
+        @ XXX spawn grenade
+
+        bal 9f
+
+        @ check reload
+1:      ldr r2, =debounce
+        ldrh r2, [r2]
+        tst r1, #KEY_TRIGGER_L
+        tsteq r2, #KEY_TRIGGER_L
+        bne 9f
+
+2:      ldrb r3, [r4, #QUINNST_FLAGS]
+        orr r3, r3, #QUINN_FLAG_RELOADING
+        strb r3, [r4, #QUINNST_FLAGS]
+
+        ldrb r3, [r4, #QUINNST_AMMO]
+        bic r3, r3, #0xf
+        orr r3, r3, #QUINN_INITIAL_BULLETS
+        strb r3, [r4, #QUINNST_AMMO]
+
+        mov r3, #0
+        strb r3, [r4, #QUINNST_ATTACKCTR]
+
+9:	@ Save debounce
+	mvn r1, r1
+	ldr r2, =debounce
+	strh r1, [r2]
+
+	@ Limit acceleration.
+	ldrsh r2, [r0, #ACTRT_AX]
+	mov r3, #QUINN_MAX_ACCELX	    @ XXX base on speed?
+	cmp r2, r3
+	movgt r2, r3
+	rsb r3, r3, #0
+	cmp r2, r3
+	movlt r2, r3
+	strh r2, [r0, #ACTRT_AX]
+
+	@ update attack counter.
+	ldrb r2, [r4, #QUINNST_ATTACKCTR]
+        ldrb r3, [r4, #QUINNST_FLAGS]
+	cmp r2, #0
+	subgt r2, r2, #1
+	strgtb r2, [r4, #QUINNST_ATTACKCTR]
+        bicle r3, r3, #QUINN_FLAG_FIRING_GRENADE
+        strleb r3, [r4, #QUINNST_FLAGS]
+
+	@ Decrement invulnerability.
+	ldrb r2, [r4, #QUINNST_INVULNCTR]
+	cmp r2, #0
+	subgt r2, r2, #1
+	strgtb r2, [r4, #QUINNST_INVULNCTR]
+
+	@ Check for death.
+	ldrb r2, [r0, #ACTRT_HEALTH]
+	cmp r2, #0
+	bgt 1f
+
+	@ ``Well, I mean, he had it coming.''
+        @                               ``Kid, we all got it coming.''
+	ldrb r3, [r0, #ACTRT_FLAGS]
+	bic r3, r3, #ACTRT_FLAG_ALIVE
+	strb r3, [r0, #ACTRT_FLAGS]
+
+1:	@ update jump counter.
+	ldrb r2, [r4, #QUINNST_JUMPCTR]
+	cmp r2, #1
+	blt 7f
+        @ Can't have the following (airjump protection) because it
+        @ impairs Quinn's walljump which shares the same counter.
+	@cmp r7, #0
+	@moveq r2, #0
+        @streqb r2, [r4, #QUINNST_JUMPCTR]
+        @beq 7f
+	subs r2, r2, #1
+	strb r2, [r4, #QUINNST_JUMPCTR]
+	bne 7f
+        ldrb r3, [r4, #QUINNST_FLAGS]
+        tst r3, #QUINN_FLAG_SLIDING
+        bne 1f
+        tst r3, #QUINN_FLAG_ON_LADDER
+        bne 2f
+	bl quinn_jump
+        bal 7f
+1:      bic r3, r3, #QUINN_FLAG_SLIDING
+        strb r3, [r4, #QUINNST_FLAGS]
+        bal 7f
+2:      bl quinn_walljump
+
+7:	ldmfd sp!, {r4-r8,pc}
+@
+
+<<ARM Routines in ROM>>= 
+quinn_jump:
+	ldrsh r2, [r0, #ACTRT_AY]
+	sub r2, r2, #QUINN_JUMP_POWER
+	ldrb r3, [r4, #QUINNST_JUMPCTR]
+	add r2, r2, r3, lsl #QUINN_JUMPCTR_SHIFT
+	strh r2, [r0, #ACTRT_AY]
+	mov r2, #QUINN_JUMP_IMPULSE
+	strh r2, [r0, #ACTRT_VY]
+
+	ldr r5, =actor_segs
+	ldrb r3, [r0, #ACTRT_IDX]
+	add r5, r5, r3, lsl #2
+	mov r2, #0
+	strh r2, [r5, #ACTSEG_FLOOR]
+	bx lr
+
+@ This only gets used when Quinn jumps off a ladder.
+
+<<ARM Routines in ROM>>= 
+quinn_walljump:
+	ldrsh r2, [r0, #ACTRT_AY]
+	sub r2, r2, #QUINN_WALL_VPOWER
+	strh r2, [r0, #ACTRT_AY]
+	mov r2, #QUINN_WALL_POWER
+	ldrb r3, [r4, #QUINNST_JUMPCTR]
+	sub r2, r2, r3, lsl #QUINN_WALLCTR_SHIFT
+
+	mov r3, r8
+	ldr r5, =linebank
+	ldr r5, [r5]
+	add r3, r3, r3, lsl #1
+	add r5, r5, r3, lsl #2
+	ldrb r3, [r5, #SEGRT_TYPE]
+	mov r5, #1
+	tst r3, #SEGTYPE_FLAG_X
+	rsbeq r2, r2, #0
+	rsbeq r5, r5, #0
+	strh r2, [r0, #ACTRT_AX]
+	mov r2, #0
+	strh r2, [r0, #ACTRT_VX]
+
+	ldr r5, =actor_segs
+	ldrb r3, [r0, #ACTRT_IDX]
+	add r5, r5, r3, lsl #2
+	mov r2, #0
+	strh r2, [r5, #ACTSEG_WALL]
+	bx lr
+
+@
+
+<<ARM Routines in ROM>>= 
+quinn_muzzleflash_handler:
+	stmfd sp!, {r4,lr}
+
+	ldr r3, =actor_rt
+	add r1, r3, r1, lsl #5
+
+	ldr r4, =sprite_rt
+	add r4, r4, r0, lsl #4
+
+	@ If the counter isn't equal to the anim length,
+	@ skip the initialization parts below and do nothing.
+	cmp r2, #QUINN_MUZZLEFLASH_LEN
+	bne 1f
+
+	mov r3, #0x20		    @ priority 1
+	strb r3, [r4, #SPRT_ANIMIDX]
+
+	ldrh r0, [r1, #ACTRT_Y]
+	ldr r2, =camera_y
+	ldrh r2, [r2]
+	sub r0, r0, r2
+	ldr r2, =camera_deltay
+	ldrsb r2, [r2]
+	sub r0, r0, r2
+	ldr r2, [r1, #ACTRT_PARTSPTR]
+	add r2, r2, #4
+	ldrsb r2, [r2, #3]
+	add r0, r0, r2
+
+        ldr r2, [r1, #ACTRT_STATE]
+        ldrb r2, [r2, #QUINNST_FLAGS]
+        add r0, r0, #4
+        tst r2, #QUINN_FLAG_AIMING_UP
+        subne r0, r0, #8
+        tst r2, #QUINN_FLAG_AIMING_DOWN
+        addne r0, r0, #4
+	strb r0, [r4, #SPRT_Y]
+
+	ldrh r0, [r1, #ACTRT_X]
+	ldr r2, =camera_x
+	ldrh r2, [r2]
+	sub r0, r0, r2
+	ldr r2, =camera_deltax
+	ldrsb r2, [r2]
+	sub r0, r0, r2
+	ldr r2, [r1, #ACTRT_PARTSPTR]
+	add r2, r2, #4
+	ldrsb r2, [r2, #2]
+	add r0, r0, r2
+	ldrb r2, [r1, #ACTRT_FLAGS]
+	tst r2, #ACTRT_FLAG_FACING
+        subne r0, r0, #6
+        addeq r0, r0, #12
+	strh r0, [r4, #SPRT_X]
+
+	ldrb r0, [r4, #SPRT_XFLAGS]
+	ldrb r2, [r1, #ACTRT_FLAGS]
+	tst r2, #ACTRT_FLAG_FACING
+	orrne r0, r0, #0b1000
+	biceq r0, r0, #0b1000
+	strb r0, [r4, #SPRT_XFLAGS]
+	bal 9f
+
+1:
+9:      ldmfd sp!, {r4, pc}
+
+@ Quinn's offset handler.  Also deals with his animations.
+
+<<ARM Routines in ROM>>= 
+	.global offset_quinn
+offset_quinn:
+	stmfd sp!, {r4-r8,lr}
+
+	mov r6, #0
+	mov r7, #0
+
+	ldr r1, [r0, #ACTRT_STATE]
+
+	@ Here we prep the override register with the appropriate attack
+	@ animation if necessary.
+	ldrb r8, [r1, #QUINNST_ATTACKCTR]
+	cmp r8, #0
+        mov r8, #0
+	beq 1f
+
+	ldrb r2, [r1, #QUINNST_FLAGS]
+	tst r2, #QUINN_FLAG_AIMING_UP
+	movne r8, #QUINN_TOPANM_FIRE_UP
+        tst r2, #QUINN_FLAG_AIMING_DOWN
+        movne r8, #QUINN_TOPANM_FIRE_DOWN
+        cmp r8, #0
+	moveq r8, #QUINN_TOPANM_FIRE_FORE
+        tst r2, #QUINN_FLAG_FIRING_GRENADE
+        movne r8, #QUINN_TOPANM_THROW
+        bal 2f
+
+1:	ldrb r2, [r1, #QUINNST_FLAGS]
+        tst r2, #QUINN_FLAG_AIMING_UP
+        movne r8, #QUINN_TOPANM_AIM_UP
+        tst r2, #QUINN_FLAG_AIMING_DOWN
+        movne r8, #QUINN_TOPANM_AIM_DOWN
+        tst r2, #QUINN_FLAG_RELOADING
+        movne r8, #QUINN_TOPANM_RELOAD
+ 
+2:      mov r4, r0
+	mov r0, r1
+
+	@ Update animations
+        ldr r5, [r4, #ACTRT_PARTSPTR]
+        ldrb r3, [r5]
+        cmp r3, #0xff               @ inactive
+        beq 6f
+
+	ldr r3, =actor_segs
+	ldrb r1, [r4, #ACTRT_IDX]
+	add r3, r3, r1, lsl #2
+	ldrh r1, [r3, #ACTSEG_FLOOR]
+
+	ldr r3, =actor_segs
+	ldrb r2, [r4, #ACTRT_IDX]
+	add r3, r3, r2, lsl #2
+	ldrh r2, [r3, #ACTSEG_WALL]
+
+        ldrb r3, [r0, #QUINNST_FLAGS]
+        tst r3, #QUINN_FLAG_SLIDING
+        beq 4f
+
+        two_part_anim_m BETALEGS_BOTANM_BLANK, QUINN_TOPANM_SLIDE
+        bal 6f
+
+4:	@ If Quinn is getting hurt, that overrides anything else, and we
+	@ just choose his leg state based on floors and walls.
+	ldrb r3, [r0, #QUINNST_INVULNCTR]
+	cmp r3, #0
+	beq 4f
+
+	cmp r1, #0
+	bne 1f
+	@ in the air
+	two_part_anim_m BETALEGS_BOTANM_JUMP, QUINN_TOPANM_HIT
+	sub r6, r6, #12
+	bal 6f
+
+	@ on a floor
+1:	two_part_anim_m BETALEGS_BOTANM_STAND, QUINN_TOPANM_HIT
+	sub r6, r6, #12
+	bal 6f
+
+4:	cmp r1, #0
+	bne 1f
+	cmp r2, #0
+	beq 2f
+
+	@ check the type of the normal, to see if we should be climbing
+	@ or just jumping.
+	ldr r3, =linebank
+	ldr r3, [r3]
+	add r2, r2, r2, lsl #1
+	add r3, r3, r2, lsl #2
+	ldrb r2, [r3, #SEGRT_TYPE]
+	tst r2, #SEGTYPE_FLAG_LADDER
+	beq 2f
+
+	@ freeze his climbing animation if he has no vertical velocity
+	ldrsh r1, [r4, #ACTRT_VY]
+	cmp r1, #0
+	beq 3f
+
+	two_part_anim_m BETALEGS_BOTANM_CLIMB, QUINN_TOPANM_CLIMB
+	sub r6, r6, #16
+	bal 6f
+
+3:	two_part_anim_m BETALEGS_BOTANM_CLIMBSTOPPED, QUINN_TOPANM_CLIMBSTOPPED
+	sub r6, r6, #16
+	bal 6f
+
+2:	two_part_anim_with_attack_m BETALEGS_BOTANM_JUMP, QUINN_TOPANM_JUMP
+	sub r6, r6, #12
+	cmp r8, #0
+	addne r7, r7, #2
+	bal 6f
+
+1:	ldr r3, [r4, #ACTRT_STATE]
+	ldrb r1, [r3, #QUINNST_FLAGS]
+	tst r1, #QUINN_FLAG_DUCK
+	beq 1f
+
+	two_part_anim_with_attack_m BETALEGS_BOTANM_DUCK, QUINN_TOPANM_STAND
+	sub r6, r6, #8
+	sub r7, r7, #1
+	cmp r8, #0
+	addne r7, r7, #2
+	bal 6f
+
+1:	ldrsh r1, [r4, #ACTRT_AX]
+	cmp r1, #0
+	beq 5f
+	two_part_anim_with_attack_m BETALEGS_BOTANM_WALK, QUINN_TOPANM_WALK
+	sub r6, r6, #12
+	add r7, r7, #1
+	cmp r8, #0
+        addne r7, r7, #1
+	bal 6f
+
+5:	ldrsh r1, [r4, #ACTRT_VX]
+	cmp r1, #0
+	beq 5f
+
+	two_part_anim_with_attack_m BETALEGS_BOTANM_SKID, QUINN_TOPANM_SKID
+	sub r6, r6, #12
+	cmp r8, #0
+	subne r7, r7, #1
+	bal 6f
+
+5:	two_part_anim_with_attack_m BETALEGS_BOTANM_STAND, QUINN_TOPANM_STAND
+	sub r6, r6, #12
+        sub r7, r7, #1
+	cmp r8, #0
+	addne r7, r7, #2
+	bal 6f
+
+6:      ldr r0, [r4, #ACTRT_STATE]
+        ldrb r1, [r0, #QUINNST_FLAGS]
+        tst r1, #QUINN_FLAG_RELOADING
+        beq 6f
+        ldrb r0, [r5]
+        bl sprite_checklooped
+        cmp r0, #1
+        bne 6f
+        ldr r0, [r4, #ACTRT_STATE]
+        ldrb r1, [r0, #QUINNST_FLAGS]
+        bic r1, r1, #QUINN_FLAG_RELOADING
+        strb r1, [r0, #QUINNST_FLAGS]
+
+6:	@ Update offsets.
+	mov r0, #0
+	ldrb r1, [r4, #ACTRT_NPARTS]
+	ldr r3, [r4, #ACTRT_PARTSPTR]
+
+	ldrb r2, [r3]
+	cmp r2, #0xff		    @ ignore the sprite if inactive.
+	beq 0f
+
+	mov r0, #0
+	strb r0, [r3, #2]
+	strb r0, [r3, #3]	    @ offset Y
+	add r3, r3, #4
+
+	ldrb r2, [r3]
+	cmp r2, #0xff
+	beq 0f
+
+	ldrb r2, [r4, #ACTRT_FLAGS]
+	tst r2, #ACTRT_FLAG_FACING
+	rsbne r7, r7, #0
+	strb r7, [r3, #2]	    @ offset X
+	strb r6, [r3, #3]	    @ offset Y
+	strb r7, [r4, #ACTRT_CLIPXOFF]
+	strb r6, [r4, #ACTRT_CLIPYOFF]
+
+	ldr r5, [r4, #ACTRT_STATE]
+	ldrb r2, [r5, #QUINNST_FLAGS]
+        tst r2, #QUINN_FLAG_SLIDING
+        bne 3f
+	tst r2, #QUINN_FLAG_DUCK
+	beq 1f
+
+	mov r5, #16
+	strb r5, [r4, #ACTRT_CLIPW]
+	mov r6, #16
+	strb r6, [r4, #ACTRT_CLIPH]
+	mov r5, #0
+	strb r5, [r4, #ACTRT_CLIPXOFF]
+	strb r5, [r4, #ACTRT_CLIPYOFF]
+	bal 2f
+
+3:      mov r5, #32
+	strb r5, [r4, #ACTRT_CLIPW]
+	mov r6, #16
+	strb r6, [r4, #ACTRT_CLIPH]
+	mov r5, #0
+	strb r5, [r4, #ACTRT_CLIPXOFF]
+	strb r5, [r4, #ACTRT_CLIPYOFF]
+
+        bal 2f
+
+1:	mov r5, #16
+	strb r5, [r4, #ACTRT_CLIPW]
+	mov r6, #27
+	strb r6, [r4, #ACTRT_CLIPH]
+	mov r5, #0
+	strb r5, [r4, #ACTRT_CLIPXOFF]
+	sub r5, r5, #11
+	strb r5, [r4, #ACTRT_CLIPYOFF]
+
+2:	add r3, r3, #4
+
+0:	ldmfd sp!, {r4-r8,lr}
+	bx lr
+
+@ Quinn's damage handler.
+
+<<ARM Routines in ROM>>= 
+        .global damage_quinn
+damage_quinn:
+	stmfd sp!, {r4-r5,lr}
+	mov r5, r3
+
+	cmp r0, #0xff
+	moveq r4, #0
+	ldrne r4, =actor_rt
+	addne r4, r4, r0, lsl #5
+
+	@ invulnerability counter
+	ldr r3, [r2, #ACTRT_STATE]
+	ldrb r0, [r3, #QUINNST_INVULNCTR]
+	cmp r0, #0
+	bne 1f
+	mov r0, #QUINN_INVULN_PERIOD
+	strb r0, [r3, #QUINNST_INVULNCTR]
+
+	stmfd sp!, {r0-r3}
+	ldrb r0, [r2, #ACTRT_HEALTH]
+	subs r0, r0, r5
+        movlt r0, #0
+	strb r0, [r2, #ACTRT_HEALTH]
+
+        @ knock him off a wall etc
+	mov r0, #0
+	strb r0, [r3, #QUINNST_ATTACKCTR]
+	strb r0, [r3, #QUINNST_JUMPCTR]
+
+	@ Belmont hit
+	ldrsh r0, [r2, #ACTRT_VY]
+	cmp r0, #0
+	subge r0, r0, #QUINN_BELMONT_VY
+	strgeh r0, [r2, #ACTRT_VY]
+
+	ldrh r0, [r2, #ACTRT_X]
+	cmp r4, #0
+	beq 2f
+	ldrh r1, [r4, #ACTRT_X]
+	cmp r0, r1
+	bgt 4f
+	blt 5f
+
+2:	ldrb r1, [r2, #ACTRT_FLAGS]
+	tst r1, #ACTRT_FLAG_FACING
+	ldrsh r0, [r2, #ACTRT_VX]
+	subeq r0, r0, #QUINN_BELMONT_VX
+	addne r0, r0, #QUINN_BELMONT_VX
+	strh r0, [r2, #ACTRT_VX]
+	bal 3f
+
+4:	ldrsh r0, [r2, #ACTRT_VX]
+	add r0, r0, #QUINN_BELMONT_VX
+	strh r0, [r2, #ACTRT_VX]
+	bal 3f
+
+5:	ldrsh r0, [r2, #ACTRT_VX]
+	sub r0, r0, #QUINN_BELMONT_VX
+	strh r0, [r2, #ACTRT_VX]
+
+3:      @ make noise
+        mov r0, #CHAN_NOISE
+        mov r1, #0
+        ldr r2, =QUINN_HIT_SFX
+        bl music_play_sfx
+
+	ldmfd sp!, {r0-r3}
+1:
+
+	ldmfd sp!, {r4-r5,pc}
+@
+
+% EOF guard_act.nws

@@ -1,0 +1,408 @@
+#!/usr/bin/env perl
+# lorraine -- a quick hack level (lvd) compiler
+#
+# $Id: lorraine,v 1.4 2002/12/09 13:09:38 tek Exp $
+#
+# Note that obviously this does not handle horribly malformed files, and
+# no doubt very strange things will happen if you try odd syntax
+# combinations.
+#
+
+use strict;
+
+my %level = { mode => 0 };
+# ``temps'' for parsing tileset/actor/layers
+my %tileset; my %actor; my %layer; my %base_actor;
+my ($state,$line,$act_mode) = (0,0,0);
+
+@{$level{actors}} = ();
+
+while(<>) {
+    $line++;
+    chomp; if(m/^#/ or m/^\s*$/) { next }
+    for (split) { &parse }
+}
+&check_consistency;
+&output_level;
+
+
+sub parse {
+    if($state == 0) {           # keyword
+        if($_ eq 'name') { $state = 1 }
+        elsif($_ eq 'mode') { $state = 2 }
+        elsif($_ eq 'tilesets') { $state = 3 }
+        elsif($_ eq 'alpha_palette') { $state = 4 }
+        elsif($_ eq 'beta_palette') { $state = 5 }
+        elsif($_ eq 'alpha_segtree') { $state = 6 }
+        elsif($_ eq 'beta_segtree') { $state = 7 }
+        elsif($_ eq 'line_bank') { $state = 8 }
+        elsif($_ eq 'tileset') { $state = 9 }
+        elsif($_ eq 'ext_tileset') { $state = 10 }
+        elsif($_ eq 'layer') { $state = 11 }
+        elsif($_ eq 'no_layer') {
+            undef %layer;
+            $layer{not_real} = 1;
+            push(@{$level{layers}}, {%layer})
+
+        } elsif($_ eq 'ext_layer') { $state = 13 }
+        elsif($_ eq 'actor') { $state = 14 }
+        elsif($_ eq 'actor_cluster') { $state = 15 }
+        else { die "$line: No parse.\n" }
+
+    } elsif($state == 1) {      # name
+        $level{name} = $_;
+        if(m/[^a-z0-9_]/) { die "$line: Bad level name: $_\n" }
+        $state = 0;
+
+    } elsif($state == 2) {      # mode
+        $level{mode} = $_;
+        if($_ < 0 or $_ > 2) { die "$line: Invalid mode: $_\n" }
+        $state = 0;
+
+    } elsif($state == 3) {      # tilesets
+        $level{ntilesets} = $_;
+        if($_ < 0 or $_ > 3) { die "$line: Invalid number of tilesets: $_\n" }
+        $state = 0;
+
+    } elsif($state == 4) { $level{alpha_palette} = $_; $state = 0
+    } elsif($state == 5) { $level{beta_palette} = $_; $state = 0
+    } elsif($state == 6) { $level{alpha_segtree} = $_; $state = 0
+    } elsif($state == 7) { $level{beta_segtree} = $_; $state = 0
+    } elsif($state == 8) { $level{line_bank} = $_; $state = 0
+
+    ###
+    # tileset
+    #
+    } elsif($state == 9) {      # tileset definition
+        undef %tileset;
+        $tileset{name} = $_;
+        if(m/[^a-z0-9_]/) { die "$line: Bad tileset name: $_\n" }
+        $state = 16
+    } elsif($state == 16) {     # beginning tileset block
+        if($_ ne '{') { die "$line: bad tileset parse at $_\n" }
+        $state = 17
+    } elsif($state == 17) {     # tileset keyword
+        if($_ eq 'bank') { $state = 18 }
+        elsif($_ eq 'global') { $tileset{global} = 1 }
+        elsif($_ eq 'file') { $state = 19 }
+        elsif($_ eq '}') {
+            if(!defined($tileset{bank}) or !defined($tileset{file})) {
+                die "$line: incomplete tileset.  (maybe no bank or file?)\n"
+            }
+            push(@{$level{tilesets}}, {%tileset});
+            $state = 0
+        } else { die "$line: No (tileset) parse.\n" }
+    } elsif($state == 18) {
+        $tileset{bank} = $_;
+        if($_ < 0 or $_ > 3) { die "$line: bad tilebank: $_\n" }
+        $state = 17
+    } elsif($state == 19) { $tileset{file} = $_; $state = 17
+
+    } elsif($state == 10) {     # external tileset
+        undef %tileset;
+        $tileset{extref} = $_;
+        push(@{$level{tilesets}}, {%tileset});
+        $state = 0
+
+    ###
+    # layer
+    # 
+    } elsif($state == 11) {     # layer definition
+        undef %layer;
+        $layer{name} = $_;
+        if(m/[^a-z0-9_]/) { die "$line: Bad layer name: $_\n" }
+        $state = 20
+    } elsif($state == 20) {
+        die "$line: bad layer parse at $_\n" if ($_ ne '{');
+        $state = 21
+    } elsif($state == 21) {     # layer keywords
+        if($_ eq 'width') { $state = 22 }
+        elsif($_ eq 'height') { $state = 23 }
+        elsif($_ eq 'tile_bank') { $state = 24 }
+        elsif($_ eq 'map_bank') { $state = 25 }
+        elsif($_ eq 'priority') { $state = 26 }
+        elsif($_ eq 'scroll_speed') { $state = 27 }
+        elsif($_ eq 'loop') { $state = 28 }
+        elsif($_ eq 'source') { $state = 29 }
+        elsif($_ eq 'global') { $layer{global} = 1 }
+        elsif($_ eq '}') {
+            if(!defined($layer{width}) or !defined($layer{height}) or
+                !defined($layer{tile_bank}) or !defined($layer{map_bank}) or
+                !defined($layer{scroll_speed}) or !defined($layer{priority}) or
+                !defined($layer{source})) {
+                die "$line: incomplete layer.  check all essential components.\n"
+            }
+            push(@{$level{layers}}, {%layer});
+            $state = 0
+        } else { die "$line: No (layer) parse.\n" }
+    } elsif($state == 22) {
+        $layer{width} = $_;
+        die "$line: Bad width" if($_ < 0 or $_ > 1024);
+        $state = 21
+    } elsif($state == 23) {
+        $layer{height} = $_;
+        die "$line: Bad height" if($_ < 0 or $_ > 1024);
+        $state = 21
+    } elsif($state == 24) {
+        $layer{tile_bank} = $_;
+        die "$line: Bad tile bank" if($_ < 0 or $_ > 3);
+        $state = 21
+    } elsif($state == 25) {
+        $layer{map_bank} = $_;
+        die "$line: Bad map bank" if($_ < 0 or $_ > 7);
+        $state = 21
+    } elsif($state == 26) {
+        $layer{priority} = $_;
+        die "$line: Bad priority" if($_ < 0 or $_ > 3);
+        $state = 21
+    } elsif($state == 27) {
+        $layer{scroll_speed} = $_;
+        die "$line: Bad scroll speed" if($_ < 0 or $_ > 255);
+        $state = 21
+    } elsif($state == 28) {
+        $layer{loop} = $_;
+        if($_ ne "horizontal" and $_ ne "vertical" and $_ ne "both") {
+            die "$line: Bad loop value: $_\n"
+        }
+        $state = 21
+    } elsif($state == 29) { $layer{source} = $_; $state = 21
+
+    } elsif($state == 13) {         # external layer
+        undef %layer;
+        $layer{extref} = $_;
+        push(@{$level{layers}}, {%layer});
+        $state = 0
+
+    ###
+    # actor
+    #
+    } elsif($state == 14) {              # actor
+        die "$line: Bad (actor) parse.\n" if ($_ ne "{");
+        undef %actor;
+        $act_mode = 0;
+        $state = 30
+
+    } elsif($state == 15) {         # actor_cluster
+        die "$line: Bad (actor) parse.\n" if ($_ ne "{");
+        undef %actor;
+        $act_mode = 1;
+        $state = 30
+
+    } elsif($state == 30) {         # actor keyword
+        if($_ eq '}') {
+            if($act_mode == 1) { $state = 31 }
+            else {
+                if(!defined($actor{type}) or !defined($actor{state}) or
+                    !(defined($actor{easy}) or defined($actor{hard}) or
+                      defined($actor{normal})) or
+                    !(defined($actor{alpha}) or defined($actor{beta})) or
+                    !defined($actor{x}) or !defined($actor{y})) {
+                    die "$line: Incomplete actor.\n"
+                }
+                push(@{$level{actors}}, {%actor});
+                $state = 0
+            }
+        } elsif($_ eq ']' or $_ eq ';') {
+            die "$line: Not a cluster!\n" if ($act_mode != 2);
+
+            if(!defined($actor{type}) or !defined($actor{state}) or
+                !(defined($actor{easy}) or defined($actor{hard}) or
+                  defined($actor{normal})) or
+                !(defined($actor{alpha}) or defined($actor{beta})) or
+                !defined($actor{x}) or !defined($actor{y})) {
+                die "$line: Incomplete actor.\n"
+            }
+            push(@{$level{actors}}, {%actor});
+            %actor = %base_actor;
+            if($_ eq ']') { $state = 0 }
+        } elsif($_ eq 'type') { $state = 32
+        } elsif($_ eq 'alpha') { $actor{alpha} = 1
+        } elsif($_ eq 'beta') { $actor{beta} = 1
+        } elsif($_ eq 'easy') { $actor{easy} = 1
+        } elsif($_ eq 'normal') { $actor{normal} = 1
+        } elsif($_ eq 'hard') { $actor{hard} = 1
+        } elsif($_ eq 'x') { $state = 33
+        } elsif($_ eq 'y') { $state = 34
+        } elsif($_ eq 'blank_state') { $state = 35
+        } elsif($_ eq 'trigger') { $state = 36
+        } else {
+            die "$line: Bad (actor) parse.\n"
+        }
+    } elsif($state == 31) {
+        die "$line: Bad cluster parse.\n" if($_ ne '[');
+        %base_actor = %actor;
+        $act_mode++;
+        $state = 30
+    } elsif($state == 32) { $actor{type} = $_; $state = 30
+    } elsif($state == 33) {
+        $actor{x} = $_;
+        if($_ < 0 or $_ > 8191) { die "$line: Bad x position for actor: $_\n" }
+        $state = 30
+    } elsif($state == 34) {
+        $actor{y} = $_;
+        if($_ < 0 or $_ > 8191) { die "$line: Bad y position for actor: $_\n" }
+        $state = 30
+    } elsif($state == 35) {
+        if($_ < 0 or $_ > 128) { die "$line: Bad statelen for actor: $_\n" }
+        $actor{state} = {len => $_, data => [map {0} (0 .. ($_-1))]};
+        $state = 30
+    } elsif($state == 36) {
+        if($_ < 0 or $_ > 128) { die "$line: Bad trigger ID for actor: $_\n" }
+        $actor{trigger} = $_;
+        $state = 30
+
+    } else { die "$line: Unknown state ($state) by this point.\n" }
+}
+
+
+sub check_consistency {
+    die "No name specified!" if !defined($level{name});
+    die "No alpha palette specified!" if !defined($level{alpha_palette});
+    die "No beta palette specified!" if !defined($level{beta_palette});
+    die "No line bank specified!" if !defined($level{line_bank});
+    die "No alpha segtree specified!" if !defined($level{alpha_segtree});
+    die "No beta segtree specified!" if !defined($level{beta_segtree});
+    if(scalar(@{$level{tilesets}}) != 2*$level{ntilesets}) {
+        die "Incorrect number of tilesets."
+    }
+    if(scalar(@{$level{layers}}) != 2*(4-$level{mode})) {
+        die "Incorrect number of layers (" . scalar(@{$level{layers}}) . ")\n"
+    }
+}
+
+
+sub output_level {
+    print "@ WARNING:  This file was automatically generated by lorraine.\n";
+    print "@           Do not make changes to this file!\n";
+    print "\n        .section .rodata\n        .align\n\n";
+
+    print "        .include \"game.inc\"\n\n";
+    print "        .global level_" . $level{name} . "\n";
+    print "level_" . $level{name} . ":\n";
+    print "        .hword $level{mode}<<6 | $level{ntilesets}<<4\n";
+    print "        .byte 0, " . scalar(@{$level{actors}}) . "\n";
+
+    # palettes
+    print "        .incbin \"$level{alpha_palette}\"\n";
+    print "        .incbin \"$level{beta_palette}\"\n";
+
+    print "        @ tileset pointers\n";
+    @_ = @{$level{tilesets}};
+    for(my $i = 0; $i < 2*$level{ntilesets}; $i++) {
+        if(defined(${$_[$i]}{extref})) {
+            $_ = ${$_[$i]}{extref}
+        } else {
+            $_ = $level{name} . "_" . ${$_[$i]}{name} . "_tiles"
+        }
+        print "        .word $_\n";
+    }
+
+    print "        @ layer pointers\n";
+    @_ = @{$level{layers}};
+    for(my $i = 0; $i < 2*(4-$level{mode}); $i++) {
+        if(defined(${$_[$i]}{extref})) {
+            $_ = ${$_[$i]}{extref}
+        } elsif(defined(${$_[$i]}{not_real})) {
+            $_ = "0"
+        } else {
+            $_ = $level{name} . "_" . ${$_[$i]}{name} . "_mrle"
+        }
+        print "        .word $_\n";
+    }
+
+    print "        @ line bank\n";
+    print "        .incbin \"$level{line_bank}\"\n";
+    print "        .align\n";
+
+    print "        @ alpha segtree\n";
+    print "        .word 1f-0f\n";
+    print "0:      .incbin \"$level{alpha_segtree}\"\n";
+    print "        .align\n";
+    print "1:\n";
+
+    print "        @ beta segtree\n";
+    print "        .word 1f-0f\n";
+    print "0:      .incbin \"$level{beta_segtree}\"\n";
+    print "        .align\n";
+    print "1:\n";
+
+    print "        @ actors\n";
+    for (@{$level{actors}}) {
+        print "        .hword ${$_}{type}\n";
+        print "        .byte ";
+        if(defined(${$_}{trigger})) { print ${$_}{trigger} . ", 0b1" }
+        else { print "0, 0b0" }
+        print "0"                              .
+            (defined(${$_}{beta}) ? "1":"0")   .
+            (defined(${$_}{alpha}) ? "1":"0")  .
+            "0"                                .
+            (defined(${$_}{easy}) ? "1":"0")   .
+            (defined(${$_}{normal}) ? "1":"0") .
+            (defined(${$_}{hard}) ? "1":"0")   .
+            "\n";
+        print "        .hword ${$_}{x}, ${$_}{y}\n";
+        print "        .byte ${$_}{state}{len}";
+        if(defined(${$_}{state}{data})) {
+            my $i;
+            for $i (@{${$_}{state}{data}}) { print ", $i" }
+        }
+        print "\n";
+        print "        .align\n";
+    }
+
+    print "        @ local tilesets\n";
+    for (@{$level{tilesets}}) {
+        if(defined(${$_}{extref})) { next }
+        if(defined(${$_}{global})) {
+            print "        .global ". $level{name} . "_" . ${$_}{name} . "_tiles\n";
+        }
+        print $level{name} . "_" . ${$_}{name} . "_tiles:\n";
+        if(!-r ${$_}{file}) { "Tileset ${$_}{file} needs to exist first!\n" }
+        my $i = (stat ${$_}{file})[7];
+        if($i % 32 != 0) { die "${$_}{file} has a bad number of tiles!\n" }
+        $i = $i / 32;
+        print "        .hword (${$_}{bank}<<14) | $i\n";
+        print "        .hword 0\n";
+        print "        .incbin \"${$_}{file}\"\n";
+        print "        .align\n";
+    }
+
+    print "        @ local maps\n";
+    my $i;
+    for (@{$level{layers}}) {
+        if(defined(${$_}{extref}) or defined(${$_}{not_real})) { next }
+        if(defined(${$_}{global})) {
+            print "        .global ". $level{name} . "_" . ${$_}{name} . "_mrle\n";
+        }
+        print $level{name} . "_" . ${$_}{name} . "_mrle:\n";
+        print "        .hword ${$_}{width}, ${$_}{height}\n";
+        print "        .byte (${$_}{tile_bank} << 6) | (${$_}{priority} << 4) | ".
+            "(${$_}{map_bank})\n";
+        print "        .byte ${$_}{scroll_speed}\n";
+
+        $i = 0;
+        if(${$_}{loop} eq 'horizontal') { $i = 1 }
+        elsif(${$_}{loop} eq 'vertical') { $i = 2 }
+        elsif(${$_}{loop} eq 'both') { $i = 3 }
+
+        print "        .byte $i, 0\n";
+        $i = ${$_}{source};
+        $i =~ s/\.map/.mrle/;
+        print "        .incbin \"" . $i  . "\"\n";
+
+        system("maprle",${$_}{source},${$_}{width});
+
+        # consistency checks
+        if(-r ${$_}{source}) {
+            $i = (stat ${$_}{source})[7];
+            if(($i / ${$_}{width}) != 2*${$_}{height}) {
+                die "width (${$_}{width}) and height (${$_}{height}) ".
+                    "don't match file for layer ${$_}{source} ($i})\n"
+            }
+        }
+    }
+
+    print "\n@ EOF $level{name}.s -- DO NOT MODIFY DIRECTLY\n"
+}
+
+# EOF lorraine

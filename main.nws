@@ -1,0 +1,849 @@
+% main -- main program marshal.
+% Convergence
+% Copyright Pureplay Games / 2002
+%
+% $Id: main.nws,v 1.12 2002/12/12 01:32:47 tek Exp $
+
+@ This is the main entry point for Convergence.  We start up, initialize
+game-wide things, fade in splash screens, and then move to the infinite
+title/menus loop.
+
+<<Constants>>= 
+.equ TMP_FADEDP, -16
+@ While the main menu is being displayed, we generate random words, so
+as to appropriately seed the generator.  Once the game is started, we
+reseed the bitstream generator with a random word from our main
+generator.
+
+<<ARM Routines in ROM>>= 
+	.global main
+main:
+	mov ip, sp
+	stmfd sp!, {fp,ip,lr}
+	mov fp, ip
+	sub sp, sp, #8
+
+	bl ewram_init
+
+	bl gfx_wait_vblank
+	bl gfx_set_mode_4
+	mov r0, #8
+	bl fade_whitetoblack
+
+        bl random_init
+
+	mov r0, #0
+	strb r0, [fp, #TMP_FADEDP]
+
+	<<Turn on cart prefetch>>
+	<<Check for debug mode>>
+	<<Bring up splash screens>>
+	<<Initialize difficulty level>>
+main_menu:
+	<<Provide quest selector>>
+
+	<<Load selected quest>>
+0:	bl random_word
+        bl random_init_bit
+        bl game_start
+	<<Check outcome>>
+	ldmfd sp!, {lr}
+	bx lr
+
+@ As we don't have an options screen yet, we default to hard difficulty.
+This should actually initialize the SRAM manager and load settings from
+that.
+
+<<Initialize difficulty level>>= 
+	ldr r0, =difficulty_level
+	mov r1, #DIFF_HARD
+	strb r1, [r0]
+
+@ This sets up the [[cur_quest]] pointer and the [[cur_level]] index.
+We also get the number of levels here, but we don't do anything with it
+yet.
+
+<<Load selected quest>>= 
+	mov r0, r4
+	ldr r1, =quests_table
+	ldr r0, [r1, r0]
+	ldr r1, =cur_quest
+	str r0, [r1]
+	bl string_skip
+	ldrb r1, [r0], #12	    @ number of levels
+	ldr r2, =cur_level
+	mov r3, #0
+	strb r3, [r2]
+
+@ Note that when we get levelchange, we should be showing the in-between
+levels screen, and when we get dead, we should be showing the game over
+screen.  Any other outcomes show that something is seriously wrong.
+
+<<Check outcome>>= 
+	cmp r0, #OUTCOME_DEAD
+	bne 1f
+	mov r0, #0
+	strb r0, [fp, #TMP_FADEDP]
+	bl game_over
+	cmp r0, #0		    @ continue
+	beq 0b
+	bal main_menu
+
+1:	cmp r0, #OUTCOME_LEVELCHANGE
+	bne 1f
+
+	mov r0, #0
+	strb r0, [fp, #TMP_FADEDP]
+
+	@ load the level specified by r1
+	ldr r0, =cur_level
+	strb r1, [r0]
+	@ check if this is the last level
+	ldr r0, =cur_quest
+	ldr r0, [r0]
+	bl string_skip
+	ldrb r1, [r0]
+	ldr r0, =cur_level
+	ldrb r0, [r0]
+	cmp r0, r1
+	blt 2f
+
+	bl game_finished
+	bal main_menu
+
+	@ show in-between levels screen here
+	@ (or end screen if this is the last level)
+2:	bl between_levels
+	bal 0b
+
+	@ We shouldn't get any other outcomes!
+1:	ldr r0, =msg_badoutcome
+	bal abort
+
+@ We store a pointer to the current quest and the index of the current
+level.  While the hero might be on a further {\em area}, this keeps
+track of their level --- where they'll start if they run out of lives.
+
+Difficulty level selection is here also.
+
+<<EWRAM Variables>>= 
+	.global cur_quest, main_debug, cur_level, difficulty_level
+cur_quest: .skip 4
+cur_level: .skip 1
+main_debug: .skip 1
+difficulty_level: .skip 1
+.align
+
+@ This quest selector is a crude hack which will disappear eventually.
+
+<<Provide quest selector>>= 
+quest_select:
+	@ Quest selector
+	bl gfx_set_mode_1
+	ldr r0, =maiden_palette
+	bl gfx_set_spr_palette
+
+	ldr r0, =maiden_font
+	bl font_init
+
+	<<Render quest selector message>>
+
+	bl gfx_wait_vblank
+
+	bl font_clear
+	ldr r0, =msg_buf
+	mov r1, #0
+	mov r2, #0
+	bl font_paintstring
+
+	<<Fade in, if we haven't already>>
+
+1:	bl random_word
+
+        ldr r0, =REG_KEY
+	ldrh r0, [r0]
+
+	tst r0, #KEY_START
+	tsteq r5, #KEY_START
+	beq 1f
+
+	tst r0, #KEY_DOWN
+	tsteq r5, #KEY_DOWN
+	bne 2f
+
+	add r4, r4, #4
+	ldr r1, =quests_table
+	ldr r2, [r1, r4]
+	cmp r2, #0
+	moveq r4, #0
+
+2:	tst r0, #KEY_UP
+	tsteq r5, #KEY_UP
+	bne 2f
+
+	subs r4, r4, #4
+	movlt r4, #(NQUESTS-1)*4
+
+@ This last bit of the quest selector code saves the key debounce in
+{\bf r5} and then jumps back to the quest selector renderer (label 0 is
+in the ``Render quest selector message'' chunk).
+
+<<Provide quest selector>>= 
+2:	mvn r5, r0
+	bal 0b
+
+1:
+
+@ This renders the quest select message and the name of the quest into
+[[msg_buf]], which is crude and ugly, thanks to the old debug font
+routines.  This will be disappearing once the real menu routines come to
+this module.
+
+<<Render quest selector message>>= 
+	mov r4, #0
+	mov r5, #0
+0:	ldr r0, =msg_buf
+	ldr r1, =msg_qselector
+ @ {
+1:	ldrb r2, [r1], #1
+	strb r2, [r0], #1
+	cmp r2, #0
+	bne 1b
+ @ }
+	sub r0, r0, #1
+	ldr r1, =quests_table
+	ldr r1, [r1, r4]
+ @ {
+1:	ldrb r2, [r1], #1
+	strb r2, [r0], #1
+	cmp r2, #0
+	bne 1b
+ @ }
+
+
+@ Turning on cart prefetch radically speeds up a lot of operations on
+ROM, but also costs more battery power, so beware.
+
+<<Turn on cart prefetch>>= 
+	ldr r0, =REG_CART
+	ldrh r1, [r0]
+	orr r1, r1, #1<<14
+	strh r1, [r0]
+
+@ If the player is holding down the R trigger when the game boots, we
+enable the debug flag so they can access all sorts of ridiculous things.
+(see [[game]] module)
+
+<<Check for debug mode>>= 
+	ldr r0, =REG_KEY
+	ldrh r1, [r0]
+	tst r1, #KEY_TRIGGER_R
+	moveq r1, #42
+	movne r1, #0
+	ldr r0, =main_debug
+	strb r1, [r0]
+
+@ This decompresses and displays various logo screens in modes 4 or 5,
+with nice luma blends in between.  The last thing it must always do is
+fade to black.
+
+<<Bring up splash screens>>= 
+	bl gfx_set_mode_4
+	ldr r0, =pureplay_logo_pal
+	bl gfx_set_bg_palette
+	mov r0, #vram_base
+	ldr r1, =img_pureplay_logo
+	ldr r2, =SCREEN_WIDTH*SCREEN_HEIGHT
+	bl dma_copy32
+	mov r0, #15
+	bl fade_in
+	@ XXX pause here for a second or so
+	mov r0, #30
+	bl fade_out
+
+@ We only want to fade in after we've drawn everything, but we only want
+to fade in once.  [[TMP_FADEDP]] gets reset after a run-in with the
+in-game loop.
+
+<<Fade in, if we haven't already>>= 
+	ldrb r0, [fp, #TMP_FADEDP]
+	cmp r0, #0
+	bne 1f
+	mov r0, #30
+	strb r0, [fp, #TMP_FADEDP]
+	bl fade_in
+
+@ Options menu stuff.
+
+<<Read-only data>>= 
+msg_options_hdr: .string "options"
+msg_options_difficulty: .string "difficulty"
+msg_difficulty_easy: .string "easy"
+msg_difficulty_normal: .string "normal"
+msg_difficulty_hard: .string "hard"
+msg_options_gamma: .string "gamma correction"
+msg_options_musicvol: .string "music volume"
+msg_options_sfxvol: .string "sound volume"
+
+@ \section{Between-levels Screen}
+
+Between levels, we tell the player who they are and where they're
+heading, with a silhouette of the character running at the top.
+
+<<Read-only data>>= 
+.equ MSG_ENTERING_LEN, (1f - msg_entering)
+msg_entering: .string "is now entering"
+1:
+@
+
+<<Constants>>= 
+.equ TMP_X, -15                     @ byte
+.equ TMP_COUNTER, -14               @ hword
+@
+<<ARM Routines in ROM>>= 
+between_levels:
+	mov ip, sp
+	stmfd sp!, {fp,ip,lr}
+	mov fp, ip
+	sub sp, sp, #4
+
+	ldr r0, =REG_DISPCNT
+	mov r1, #0x100
+	strh r1, [r0]
+
+	ldr r0, =REG_BG0
+	ldrh r1, [r0]
+
+	mov r1, #31<<8
+	orr r1, r1, #0b1100
+	strh r1, [r0]
+	ldr r0, =REG_BG0SCX
+	mov r1, #0
+	str r1, [r0]
+
+	mov r0, #31
+	mov r1, #3
+	bl text_init
+	ldr r0, =main_palette
+	bl gfx_set_bg_palette
+	ldr r0, =main_font
+	bl text_setfont
+
+	mov r0, #15
+	strb r0, [fp, #TMP_FADEDP]
+	mov r0, #300
+	strh r0, [fp, #TMP_COUNTER]
+
+0:	bl gfx_wait_vblank
+	ldr r1, =REG_KEY
+	ldrh r1, [r1]
+	tst r1, #KEY_START
+	beq 8f
+
+        ldrb r0, [fp, #TMP_COUNTER]
+        subs r0, r0, #1
+        beq 8f
+        strb r0, [fp, #TMP_COUNTER]
+
+	bl text_wipe
+
+        mov r0, #2
+        strb r0, [fp, #TMP_X]
+
+	mov r0, #3
+	bl text_setpalette
+        ldr r0, =hero_type
+        ldrb r1, [r0]
+	ldr r0, =archetype_table
+        ldrh r1, [r0, r1]
+        add r0, r0, r1, lsl #2
+        add r0, r0, #7
+        ldrb r1, [r0], #1
+        add r0, r0, r1, lsl #3
+        add r0, r0, #20
+        ldrb r1, [fp, #TMP_X]
+	mov r2, #14
+        stmfd sp!, {r0}
+	bl text_puts
+        mov r1, r0
+        ldmfd sp!, {r0}
+        sub r0, r1, r0
+
+        ldrb r1, [fp, #TMP_X]
+        add r1, r1, r0
+        strb r1, [fp, #TMP_X]
+
+	mov r0, #1
+	bl text_setpalette
+	ldr r0, =msg_entering
+        ldrb r1, [fp, #TMP_X]
+	mov r2, #14
+	bl text_puts
+
+        ldrb r1, [fp, #TMP_X]
+        add r1, r1, #MSG_ENTERING_LEN
+        strb r1, [fp, #TMP_X]
+
+	mov r0, #3
+	bl text_setpalette
+        ldr r0, =cur_quest
+        ldr r0, [r0]
+        bl string_skip
+        add r0, r0, #12
+        ldr r1, =cur_level
+        ldrb r1, [r1]
+        add r0, r0, r1, lsl #2
+        ldr r0, [r0]
+        ldrb r1, [fp, #TMP_X]
+	mov r2, #14
+	bl text_puts
+
+	ldrb r0, [fp, #TMP_FADEDP]
+	cmp r0, #0
+	blne fade_in
+	mov r0, #0
+	strb r0, [fp, #TMP_FADEDP]
+
+	bal 0b
+
+8:	mov r0, #15
+	bl fade_out
+
+        ldmea fp, {fp,sp,pc}
+@
+
+@ \section{Game Over}
+
+<<Read-only data>>= 
+msg_continue: .string "Continue"
+msg_end: .string "End"
+
+@ We use [[TMP_FADEDP]] from the main routine... this is lazy.
+
+<<Constants>>= 
+.equ TMP_RESULT, -15		    @ byte
+.equ TMP_DEBOUNCE, -14		    @ hword
+
+@ The game over screen fades in, displays the option to continue or to
+end the game, and fades out.  The result is returned in {\bf r0}, 0 for
+continue, 1 for end.
+
+<<ARM Routines in ROM>>= 
+game_over:
+	mov ip, sp
+	stmfd sp!, {fp,ip,lr}
+	mov fp, ip
+	sub sp, sp, #4
+
+	ldr r0, =REG_DISPCNT
+	mov r1, #0x100
+	strh r1, [r0]
+
+	ldr r0, =REG_BG0
+	ldrh r1, [r0]
+
+	mov r1, #31<<8
+	orr r1, r1, #0b1100
+	strh r1, [r0]
+	ldr r0, =REG_BG0SCX
+	mov r1, #0
+	str r1, [r0]
+
+	mov r0, #31
+	mov r1, #3
+	bl text_init
+	ldr r0, =main_palette
+	bl gfx_set_bg_palette
+	ldr r0, =main_font
+	bl text_setfont
+	mov r0, #14
+	bl text_setpalette
+
+	mov r0, #15
+	strb r0, [fp, #TMP_FADEDP]
+	mov r0, #0
+	strb r0, [fp, #TMP_RESULT]
+
+0:	bl gfx_wait_vblank
+	ldr r1, =REG_KEY
+	ldrh r1, [r1]
+	ldrh r2, [fp, #TMP_DEBOUNCE]
+	mvn r0, r1
+	strh r0, [fp, #TMP_DEBOUNCE]
+	tst r1, #KEY_START
+	tsteq r2, #KEY_START
+	beq 8f
+
+	tst r1, #KEY_UP
+	tsteq r2, #KEY_UP
+	bne 1f
+
+	ldrb r0, [fp, #TMP_RESULT]
+	subs r0, r0, #1
+	movlt r0, #1
+	strb r0, [fp, #TMP_RESULT]
+
+1:	tst r1, #KEY_DOWN
+	tsteq r2, #KEY_DOWN
+	bne 1f
+
+	ldrb r0, [fp, #TMP_RESULT]
+	add r0, r0, #1
+	cmp r0, #1
+	movgt r0, #0
+	strb r0, [fp, #TMP_RESULT]
+
+1:	bl text_wipe
+
+	ldrb r0, [fp, #TMP_RESULT]
+	cmp r0, #0
+	movne r0, #2
+	moveq r0, #0
+	bl text_setpalette
+	ldr r0, =msg_continue
+	mov r1, #4
+	mov r2, #14
+	bl text_puts
+
+	ldrb r0, [fp, #TMP_RESULT]
+	cmp r0, #1
+	movne r0, #2
+	moveq r0, #0
+	bl text_setpalette
+	ldr r0, =msg_end
+	mov r1, #4
+	mov r2, #15
+	bl text_puts
+
+	ldrb r0, [fp, #TMP_FADEDP]
+	cmp r0, #0
+	blne fade_in
+	mov r0, #0
+	strb r0, [fp, #TMP_FADEDP]
+
+	bal 0b
+
+8:	mov r0, #15
+	bl fade_out
+	ldrb r0, [fp, #TMP_RESULT]
+	ldmea fp!, {fp,sp,pc}
+@
+
+@ \section{Misc}
+
+Miscellaneous content follows.
+
+<<Read-only data>>= 
+msg_qselector: .string "nugget test: "
+msg_badoutcome: .string "bad outcome!"
+<<EWRAM Variables>>= 
+msg_buf: .skip 32
+<<Files to include>>= 
+	.include "gba.inc"
+	.include "game.inc"
+
+@ This string skip routine is used both here and in the game module, and
+it should only ever use {\bf r0} and {\bf r1}, as that is an assumption
+made by both of these modules.
+
+<<ARM Routines in ROM>>= 
+	.global string_skip
+string_skip:
+0:	ldr r1, [r0], #4
+	tstal r1, #0x000000ff
+	tstne r1, #0x0000ff00
+	tstne r1, #0x00ff0000
+	tstne r1, #0xff000000
+	bne 0b
+	bx lr
+
+@ \section{Endings}
+
+Displaying the end credits is pretty simple.  We set up a simple mode
+where we can display nice text.  We keep a pointer into the end credits
+desired.  We write the first line of text onto the bottom of the text
+layer, and begin scrolling the text layer up.  Every 8 scanlines, while
+we haven't reached the end, we draw the next line of text into the area
+where it will be scrolled in.  Once we've reached the end, we wait for
+the user to press start.
+
+<<ARM Routines in ROM>>= 
+        .global game_finished
+game_finished:
+        stmfd sp!, {lr}
+        
+        ldmfd sp!, {lr}
+        bx lr
+
+@ This is the first set of end credits displayed.
+
+<<Read-only data>>= 
+end_credits_1:
+.string "      CONVERGENCE TEAM       "
+.string "      PUREPLAY    2002       "
+.string ""
+.string " LEAD DESIGNER           ret "
+.string " LEAD PROGRAMMER         tek "
+.string ""
+.string "           DESIGN            "
+.string " GAME DESIGN       ret & tek "
+.string " CHARACTER DESIGN        ret "
+.string " LEVEL DESIGN            ret "
+.string ""
+.string "            CODE             "
+.string " ENGINE PROGRAM          tek "
+.string " GAME PROGRAM            tek "
+.string " FX PROGRAM              tek "
+.string " TOOLS AND SUPPORT       tek "
+.string ""
+.string "             ART             "
+.string " ART DIRECTOR            ret "
+.string " SPRITES                 ret "
+.string " TILEMAPS                ret "
+.string " SEGMENT MAPS            ret "
+.string " OBJECTS                 ret "
+.string ""
+.string "             AUDIO           "
+.string " MUSIC                   tek "
+.string " SOUND EFFECTS           tek "
+.string ""
+.string "           BUSINESS          "
+.string " PRODUCER                tek "
+.string " PROJECT MANAGER         tek "
+.string " MORALE MANAGER          ret "
+.string " CATERER                 tek "
+.string " JANITOR                 tek "
+.string " SYS ADMIN               tek "
+.string ""
+.string ""
+.string "    THANKS TO:               "
+.string "Greg, Jason, Ngaire, Phibes, "
+.string "Mikaela, Elb, Hope, Steph,   "
+.string "Sarah, Jamie, Ismail, Zack,  "
+.string "Garland, Jim, Ron, Theo, Ed, "
+.string "Robert, Glenn T, Trina,      "
+.string "         and Tony D.         "
+.string ""
+.string ""
+.string "    THANK YOU FOR PLAYING    "
+.string " DON'T FORGET TO PLAY AGAIN! "
+.string ""
+.string ""
+end_credits_1_end:
+
+@ Second credits, more strange than the first, but less ridiculous than
+the following ones.
+
+<<Read-only data>>= 
+end_credits_2:
+.string " CONVERGENCE EXTENDED THANKS "
+.string "   PEOPLE, BANDS, AND GAMES  "
+.string "WHICH WERE INFLUENCES DURING "
+.string "   THE DEVELOPMENT PROCESS   "
+.string ""
+.string "Ghosts'n'Goblins             "
+.string "              (beaten by tek)"
+.string "Cobra Triangle               "
+.string "              (beaten by ret)"
+.string "Battletoads in Battlemaniacs "
+.string "        (beaten by ret & tek)"
+.string "Phantom Fighter              "
+.string "              (beaten by ret)"
+.string "Dynamite Headdy              "
+.string "              (beaten by tek)"
+.string "Gauntlet                     "
+.string "Contra III                   "
+.string "Firepower 2000               "
+.string "Gradius III                  "
+.string "Castlevania IV               "
+.string "Super Smash TV               "
+.string "Super Ghouls'n'Ghosts        "
+.string "Batman                       "
+.string "              (beaten by tek)"
+.string "Ninja Gaiden                 "
+.string "              (beaten by tek)"
+.string "Ultima 7                     "
+.string "Pool of Radiance (ha!)       "
+.string "True Lies                    "
+.string ""
+.string "              and especially "
+.string "Nethack                      "
+.string ""
+.string ""
+.string ""
+.string "Judas Priest, Bal Sagoth,    "
+.string "Annihilator, Ram-Zet, Samael,"
+.string "Cynic, Death, Control Denied,"
+.string "Megadeth, Bruce Dickinson,   "
+.string "Savatage, Helloween, Emperor,"
+.string "Iced Earth, Blue Oyster Cult,"
+.string "At the Gates, In Flames, 6FU,"
+.string "Kyuss, Old Man's Child,      "
+.string "Iron Maiden, Bolt Thrower,   "
+.string "Spiral Architect, Jag Panzer,"
+.string "Blind Guardian,              "
+.string "Peter Paul Koprowski, Slayer,"
+.string "Seven Witches, Iron Savior,  "
+.string "Immortal, Slayer, Soilwork,  "
+.string "Dream Theater, Faith No More,"
+.string "Three Inches of Blood, Vader,"
+.string "Machinae Supremacy, Entombed,"
+.string "Juno Reactor, Logic Bomb,    "
+.string "Yngwie Malmsteen, Grip Inc., "
+.string "Gustav Holst, Witchery, Dune,"
+.string "Hollenthon, Jeroen Tel,      "
+.string "Welle:Erdball, Rhapsody,     "
+.string "Martin Galway, Rob Hubbard,  "
+.string "Ben Daglish, PVCF, Echo,     "
+.string "Jester/Sanity, 4-Mat,        "
+.string "Glenn Gould+J.S. Bach,       "
+.string "and many more...             "
+.string ""
+.string ""
+end_credits_2_end:
+@
+
+The quotes credits.  The byte [[0xFF]] should trigger the ``Who's the
+Boss'' theme to play briefly.
+
+<<Read-only data>>= 
+end_credits_3:
+.string " QUOTES FROM THE CONVERGENCE "
+.string "     DEVELOPMENT PROCESS     "
+.string ""
+.string "I think there's a problem.   "
+.string "                        -tek "
+.string ""
+.string "So, when you drag those kids "
+.string "into the whirlpools, do they "
+.string "explode?             -ngiare "
+.string "!!! THOSE AREN'T CHILDREN!   "
+.string "THEY'RE MINES!          -tek "
+.string ""
+.string "Go little man! Go!   -ngiare "
+.string ""
+.string "I think this bug is best     "
+.string "described as \"funny ice\".    "
+.string "                        -tek "
+.string ""
+.string "Hmm, so these guys are dead  "
+.string "and the stage isn't over...  "
+.string "... Who's The Boss?     -tek "
+.byte 0xFF
+.string ""
+.string "I sure do love Megadeth.     "
+.string "                        -ret "
+.string ""
+.string "Arnax, uh, I, uh, I got a    "
+.string "bit hasty and I, uh, shot a  "
+.string "food.               -Garland "
+.string ""
+.string "Everytime you die, God kills "
+.string "a kitten.              -Greg "
+.string ""
+.string "Make sure you hit the real   "
+.string "one.                   -Greg "
+.string ""
+.string "Don't let Astfgl hit you with"
+.string "his thoughts.           -tek "
+.string ""
+.string "Is that a manta-ray          "
+.string "drinking liquor?     Uh, no, "
+.string "             that's a mighty "
+.string "             red wizard.     "
+.string " -fract                 -ret "
+.string ""
+.string "There's a bomb in my head!   "
+.string "                        -G.T "
+.string ""
+.string "Astfgl's thoughts can shoot  "
+.string "through walls!          -ret "
+.string ""
+.string "The guardian is a dragon that"
+.string "breathes Gregs.         -ret "
+.string ""
+.string "That's what he gets for being"
+.string "in a graveyard, naked, with  "
+.string "the princess.          -Greg "
+.string ""
+.string "Put in your cart // And then "
+.string "press start // In a game, a  "
+.string "game we shouldn't play!      "
+.string "                        -tek "
+.string ""
+.string "They think they know, who I  "
+.string "am // All they know is that I"
+.string "love to kill // Face down,   "
+.string "COVERED IN CLOWNS // Find me "
+.string "before another is found!     "
+.string "                        -... "
+.string ""
+.string "What's that?                 "
+.string "       Oh, that's an Xbox. It"
+.string "       makes Greg go away.   "
+.string "-ret                     -tek"
+.string ""
+.string "What does the word \"nunja\" "
+.string "suggest to you?         -ret "
+.string ""
+.string "First time in NTSC.     -tek "
+.string ""
+.string "What if Voivod wrote a score "
+.string "for a romantic comedy? ...   "
+.string "\"Sleepless on the Planet of  "
+.string " Robot Monsters\"!       -tek "
+.string ""
+.string "McKay and Conquer: Greg Alert"
+.string "                        -ret "
+.string ""
+.string "Easy, normal, hard, Greg.  On"
+.string "the Greg difficulty, replace "
+.string "all stretchers with black    "
+.string "Howards.                -ret "
+.string ""
+.string "It takes you straight to the "
+.string "title screen, no game over or"
+.string "anything.  We like to call it"
+.string "\"the Gregxit\".        -ret "
+.string ""
+.string "What, you don't remember your"
+.string "brother, \"primitive_ai.s\"?   "
+.string "                        -ret "
+.string ""
+.string "What's this frame suppoed to "
+.string "be?  It looks like he's in   "
+.string "front of a TV playing NES.   "
+.string "                        -tek "
+.string ""
+.string "Elf needs LOOT badly!   -tek "
+.string ""
+.string "That chocolate bar was so    "
+.string "good, I wish I was eating it "
+.string "right now.              -ret "
+.string ""
+.string "I'm just enjoying another    "
+.string "nice morning of giving       "
+.string "children cancer with my      "
+.string "thoughts.               -ret "
+.string ""
+.string "Time to put on eye clips!    "
+.string "                        -ret "
+.string ""
+.string "I fight your power...        "
+.string "   Woodrowe power!      -ret "
+.string ""
+.string "Greg hates Conan?! No way!   "
+.string "How could he possibly hate   "
+.string "Conan the Barbarian?    -tek "
+.string "Oh, not Conan the Barbarian, "
+.string "Conan the Kid Detective.     "
+.string "                     -ngaire "
+.string ""
+.string ""
+.string "  TRY PLAYING THROUGH AGAIN! "
+.string ""
+.string ""
+end_credits_3_end:
+@
+
+% EOF main.s

@@ -1,0 +1,49 @@
+#
+# level description file
+# Convergence
+# $Id: m_boss.lvd,v 1.1 2002/12/06 18:12:28 retsyn Exp $
+#
+
+name m_boss
+mode 0
+tilesets 2
+alpha_palette levels/m_boss/alpha_fg.pal
+beta_palette levels/m_boss/beta_fg.pal
+line_bank levels/m_boss/m_boss.lnd
+alpha_segtree levels/m_boss/alpha_sp.tree
+beta_segtree levels/m_boss/beta_sp.tree
+
+###
+# Tilesets
+#
+
+tileset alpha_fg { bank 1 file levels/m_boss/alpha_fg.tiles }
+tileset alpha_mg { bank 2 file levels/m_boss/alpha_mg.tiles global }
+tileset beta_fg { bank 1 file levels/m_boss/beta_fg.tiles }
+tileset beta_mg { bank 2 file levels/m_boss/beta_mg.tiles global }
+
+
+###
+# Layer
+#
+
+layer alpha_fg { width 80 height 80  tile_bank 1  priority 2
+    map_bank 0  scroll_speed 128  source levels/m_boss/alpha_fg.map }
+layer alpha_mg { width 64 height 64  tile_bank 2  priority 3
+    map_bank 1  scroll_speed 100  source levels/m_boss/alpha_mg.map loop both global }
+no_layer
+no_layer
+layer beta_fg { width 80 height 80  tile_bank 1  priority 2
+    map_bank 2  scroll_speed 128  source levels/m_boss/beta_fg.map }
+layer beta_mg { width 64 height 64  tile_bank 2  priority 3
+    map_bank 3  scroll_speed 100  source levels/m_boss/beta_mg.map loop both global }
+no_layer
+no_layer
+
+
+###
+# Actors
+#
+
+
+# EOF m_boss.lvd

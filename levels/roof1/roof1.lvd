@@ -1,0 +1,102 @@
+
+# 
+# level description file -- roof1
+# Convergence
+# $Id: roof1.lvd,v 1.5 2002/12/09 15:15:00 retsyn Exp $
+#
+
+name roof1
+mode 0
+tilesets 3
+alpha_palette levels/roof1/alpha_fg.pal
+beta_palette levels/roof1/beta_fg.pal
+line_bank levels/roof1/roof1.lnd
+alpha_segtree levels/roof1/alpha_sp.tree
+beta_segtree levels/roof1/beta_sp.tree
+
+###
+# Tilesets
+#
+
+ext_tileset medical_alpha_bg_tiles
+tileset alpha_fg { bank 2 file levels/roof1/alpha_fg.tiles }
+tileset alpha_ov { bank 3 file levels/roof1/alpha_ov.tiles }
+ext_tileset medical_beta_bg_tiles
+tileset beta_fg { bank 2 file levels/roof1/beta_fg.tiles }
+tileset beta_ov { bank 3 file levels/roof1/beta_ov.tiles }
+
+
+###
+# Layers
+#
+
+layer alpha_ov { width 252 height 160  tile_bank 3  priority 0
+    map_bank 0  scroll_speed 128  source levels/roof1/alpha_ov.map }
+layer alpha_fg { width 252 height 160  tile_bank 2  priority 2
+    map_bank 2  scroll_speed 128  source levels/roof1/alpha_fg.map }
+ext_layer medical_alpha_bg_mrle
+no_layer
+
+layer beta_ov { width 252 height 160  tile_bank 3  priority 0
+    map_bank 4  scroll_speed 128  source levels/roof1/beta_ov.map }
+layer beta_fg { width 252 height 160  tile_bank 2  priority 2
+    map_bank 5  scroll_speed 128  source levels/roof1/beta_fg.map }
+ext_layer medical_beta_bg_mrle
+no_layer
+
+
+###
+# Actors
+#
+
+actor_cluster { type ARCH_GREEN_TROOPER  alpha  hard blank_state 0 
+} [ x 272 y 1152  easy normal ; x 304 y 1152 easy normal ; 
+    x 696 y 88  easy normal ; x 686 y 88 easy normal ; x 676 y 88 normal ;
+    x 1840 y 160 easy normal ; x 1830 y 160 easy normal ; x 1820 y 160 easy normal ;
+    x 1632 y 160 easy normal ; x 1622 y 160 easy normal ]
+
+actor_cluster { type ARCH_GREEN_SNIPER  alpha  hard  blank_state 0
+} [ x 296 y 1096 normal ; x 344 y 736  easy normal ; x 360 y 520  easy normal ; 
+    x 552 y 88 ; x 752 y 40 normal ; x 1528 y 88 normal ; x 1688 y 64 normal ;
+    x 1680 y 136 ; x 1848 y 88 ]
+
+actor_cluster { type ARCH_GREEN_SENTRY  alpha  hard  blank_state 0
+} [ x 416 y 960 ; x 480 y 160 ; x 800 y 40 normal ; x 1016 y 80 easy normal ; 
+    x 1232 y 88 easy normal ]
+    
+actor_cluster { type ARCH_GREEN_CAPTAIN  alpha  hard  blank_state 0  y 136
+} [ x 1696 easy normal ; x 1700 easy normal ; x 1710 normal ]
+
+actor_cluster { type ARCH_BLUE_STEVE  alpha  hard  blank_state 1 
+} [ x 192 y 576  normal ; x 232 y 552 ]
+
+actor { type ARCH_ED_BEAST  alpha beta  easy normal hard  blank_state 0  x 456 y 120 }
+
+actor { type ARCH_ED_BEAST  alpha beta  hard  blank_state 0  x 456 y 120 }
+
+actor_cluster { type ARCH_CROW  beta  easy normal hard  blank_state 0 
+} [ x 272 y 1152 ; x 296 y 1152 ; x 416 y 968 ; x 280 y 688 ; x 464 y 160 ; x 1744 y 64 ;
+    x 1688 y 112 ]
+
+actor_cluster { beta  easy normal hard  blank_state 0  y 1144
+} [ x 416 type ARCH_JON ; x 440 type ARCH_ROB ]
+
+actor_cluster { type ARCH_GREEN_RIPPER  beta  normal hard  y 64  blank_state 0 
+} [ x 928 easy ; x 1168 easy ; x 1272 ; x 1528 easy ; x 1768 ]
+
+actor_cluster { type ARCH_GREEN_RIPPER  beta  hard  y 64  blank_state 0 
+} [ x 600 ; x 920 ; x 1200 ; x 1320 ; x 1560 ]
+
+actor_cluster { type ARCH_CRAWLER  beta blank_state 0 
+} [ x 712 y 1176  hard ; x 944 y 1136  easy normal hard ; x 832 y 960  normal hard ; 
+    x 1200 y 784  easy normal hard ; x 1840 y 1080 easy normal ]
+
+actor { type ARCH_GLENN  beta  blank_state 0  x 1840 y 1080  hard }
+
+actor_cluster { type ARCH_GREEN_RIPPER  beta  blank_state 0  
+} [ x 960 y 1096 easy  normal hard ; x 1040 y 1096  normal hard ; x 1064 y 1064 hard ; 
+    x 1112 y 960  hard ; x 992 y 720  easy normal hard ; x 1152 y 752  normal hard ;
+    x 1232 y 750  hard ; x 1242 y 750  hard ; x 1472 y 764  normal hard ; x 1672 y 712 hard ;
+    x 1688 y 712  easy normal hard ; x 1624 y 840  normal hard ]
+ 
+# EOF roof1.lvd

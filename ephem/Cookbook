@@ -1,0 +1,4 @@
+
+ephemerals = [glob "ephem/\[^C\]*"];
+
+data_src += [patsubst %0% %0%/%.s [ephemerals]];

@@ -1,0 +1,46 @@
+#
+# level description file -- shaft
+# Convergence
+# $Id: shaft.lvd,v 1.2 2002/12/07 22:48:43 retsyn Exp $
+#
+
+name shaft
+mode 0 
+tilesets 2
+alpha_palette levels/shaft/alpha_fg.pal
+beta_palette levels/shaft/beta_fg.pal
+line_bank levels/shaft/shaft.lnd
+alpha_segtree levels/shaft/alpha_sp.tree
+beta_segtree levels/shaft/beta_sp.tree
+
+###
+# Tilesets
+#
+
+tileset alpha_fg { bank 1 file levels/shaft/alpha_fg.tiles }
+ext_tileset m_boss_alpha_mg_tiles
+tileset beta_fg { bank 1 file levels/shaft/beta_fg.tiles }
+ext_tileset m_boss_beta_mg_tiles
+
+
+###
+# Layers
+#
+
+layer alpha_fg { width 40 height 256  tile_bank 1  priority 2
+    map_bank 0  scroll_speed 128  source levels/shaft/alpha_fg.map }
+ext_layer m_boss_alpha_mg_mrle
+no_layer
+no_layer
+layer beta_fg { width 40 height 256  tile_bank 1  priority 2
+    map_bank 2  scroll_speed 128  source levels/shaft/beta_fg.map }
+ext_layer m_boss_beta_mg_mrle
+no_layer
+no_layer
+
+
+###
+# Actors
+#
+
+# EOF shaft.lvd

@@ -1,0 +1,4 @@
+
+actors = [glob "actors/\[^C\]*"];
+
+data_src += [patsubst %0% %0%/%.s [actors]];

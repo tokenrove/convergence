@@ -1,0 +1,855 @@
+% osd -- on-screen display module.
+%
+% Convergence
+% Copyright Pureplay / 2002
+%
+% $Id: osd.nws,v 1.15 2002/12/12 01:32:47 tek Exp $
+
+The OSD module deals with keeping track of the hero's health/balance
+meter and any other non-actor, non-ephemeral thing that must be
+displayed inside the in-game loop (basically, the pause screen).
+
+<<Files to include>>= 
+	.include "game.inc"
+	.include "gba.inc"
+	.include "actor.inc"
+	.include "sprite.inc"
+@
+
+
+\section{Health Meters}
+
+When initially starting the in-game loop, the hero's health meter gets
+added.  We reserve a sprite for the meter and a sprite for the slider,
+but these are subject to change (say, if the hero morphs into Brad the
+Crow).  We also keep a pointer to the actor for whom we display the OSD,
+because I wanted to reduce the number of modules that were constantly
+peeking inside various global variables, such as [[hero_handle]].
+
+<<EWRAM Variables>>= 
+osd_meter: .skip 1
+osd_slider: .skip 1
+osd_maxhealth: .skip 1
+osd_meter_style: .skip 1
+osd_actor: .skip 4
+health_render_spr: .skip 4
+
+@ Some random constants.
+
+<<Constants>>= 
+.equ METER_X, 16
+.equ METER_Y, 16
+.equ METER_MIDDLE, 16
+.equ SLIDER_BASE_X, METER_X
+.equ SLIDER_BASE_Y, METER_Y-2
+
+@ [[osd_meter_init]] --- expects the actor to follow in {\bf r0}.
+
+<<ARM Routines in ROM>>= 
+	.global osd_meter_init
+osd_meter_init:
+	stmfd sp!, {lr}
+
+	ldr r1, =osd_actor
+	str r0, [r1]
+	ldr r1, =archetype_table
+	ldrh r2, [r0, #ACTRT_TYPE]
+	mov r2, r2, lsl #1
+	ldrh r2, [r1, r2]
+	add r1, r1, r2, lsl #2
+
+	ldr r2, =difficulty_level
+	ldrb r2, [r2]
+	add r2, r2, #4
+	ldrb r2, [r1, r2]
+	ldr r3, =osd_maxhealth
+	strb r2, [r3]
+
+	<<Decide what type of meter this actor gets>>
+
+	stmfd sp!, {r1,r3}
+	mov r1, r0
+	mov r0, r2
+	bl sprite_add
+	ldr r1, =osd_slider
+	strb r0, [r1]
+	ldr r1, =sprite_rt
+	add r1, r1, r0, lsl #4
+	mov r2, #SLIDER_BASE_X
+	strh r2, [r1, #SPRT_X]
+	mov r2, #SLIDER_BASE_Y
+	strb r2, [r1, #SPRT_Y]
+	mov r2, #0x00
+	strb r2, [r1, #SPRT_ANIMIDX]
+	ldmfd sp!, {r1,r3}
+
+	mov r0, r3
+	bl sprite_add
+	ldr r1, =osd_meter
+	strb r0, [r1]
+	ldr r1, =sprite_rt
+	add r1, r1, r0, lsl #4
+	mov r2, #METER_X
+	strh r2, [r1, #SPRT_X]
+	mov r2, #METER_Y
+	strb r2, [r1, #SPRT_Y]
+	mov r2, #0
+	strb r2, [r1, #SPRT_ANIMIDX]
+
+	ldmfd sp!, {lr}
+	bx lr
+
+@ Here we should be loading either the balance meter if bit 7 of the
+secret parts flag thing is set, and the health meter otherwise.
+
+<<Decide what type of meter this actor gets>>= 
+	ldrb r2, [r1, #13]
+	tst r2, #0b10000000
+	ldr r2, =osd_meter_style
+	movne r3, #1
+	moveq r3, #0
+	strb r3, [r2]
+        bne 2f
+
+        mov r0, #128+8
+        bl ewram_alloc
+        ldr r1, =health_render_spr
+        str r0, [r1]
+        mov r1, #0x0001
+        strh r1, [r0], #2
+        orr r1, r1, #0x9000
+        strh r1, [r0], #2
+        mov r1, #0xFF<<24
+        orr r1, r1, #4
+        str r1, [r0], #4
+        mov r1, #0
+        mov r2, #32
+3:      str r1, [r0], #4
+        subs r2, r2, #1
+        bne 3b
+
+        ldr r2, =osd_meter_style
+        ldrb r3, [r2]
+        cmp r3, #0
+
+2:	ldrne r3, =balance_meter_spr
+	ldreq r3, =health_meter_spr
+        movne r1, #PAL_METER
+        moveq r1, #PAL_HEALTHTUBE
+	ldrne r2, =jewel_spr
+        ldreq r2, =health_render_spr
+        ldreq r2, [r2]
+        movne r0, #PAL_JEWEL
+        moveq r0, #PAL_HEALTHMETER
+
+@ [[osd_meter_shutdown]] --- free the OSD sprites, and the scratch space
+allocated for the health meter if present.
+
+<<ARM Routines in ROM>>= 
+	.global osd_meter_shutdown
+osd_meter_shutdown:
+	stmfd sp!, {lr}
+	ldr r0, =osd_meter
+	ldrb r0, [r0]
+	bl sprite_remove
+	ldr r0, =osd_slider
+	ldrb r0, [r0]
+	bl sprite_remove
+
+        ldr r0, =osd_meter_style
+        ldrb r0, [r0]
+        cmp r0, #1
+        ldreq r0, =health_render_spr
+        ldreq r0, [r0]
+        bleq ewram_free
+	ldmfd sp!, {lr}
+	bx lr
+
+@ [[osd_meter_update]] --- update the position of the slider on the OSD
+meter.
+
+<<ARM Routines in ROM>>= 
+	.global osd_meter_update
+osd_meter_update:
+        stmfd sp!, {lr}
+
+	ldr r0, =osd_actor
+	ldr r0, [r0]
+
+	ldr r2, =osd_meter_style
+	ldrb r2, [r2]
+	cmp r2, #0
+	ldreqb r0, [r0, #ACTRT_HEALTH]
+	ldrnesb r0, [r0, #ACTRT_HEALTH]
+	mov r0, r0, lsl #5
+
+	ldr r1, =osd_maxhealth
+	ldrb r1, [r1]
+	ldr r2, =osd_meter_style
+	ldrb r2, [r2]
+	cmp r2, #0
+	movne r1, r1, lsl #1
+	cmp r1, #1
+	ble 1f
+
+	sub r1, r1, #2
+	mov r1, r1, lsl #1
+	ldr r2, =recip_table
+	ldrsh r1, [r2, r1]
+	mul r0, r1, r0
+	mov r0, r0, asr #16
+
+1:      ldr r1, =osd_slider
+	ldrb r1, [r1]
+
+	ldr r2, =osd_meter_style
+	ldrb r2, [r2]
+	cmp r2, #0
+        bne 1f
+
+	cmp r0, #0
+        movlt r0, #0
+        <<Render health meter>>
+        bal 2f
+
+1:	add r0, r0, #METER_MIDDLE
+	ldr r2, =sprite_rt
+	add r2, r2, r1, lsl #4
+	add r0, r0, #SLIDER_BASE_Y
+	strb r0, [r2, #SPRT_Y]
+
+2:	ldmfd sp!, {lr}
+        bx lr
+
+@ We have, in {\bf r0}, our ratio over 32.  We actually want this over
+28, so we do that conversion first.  We have to step through each of the
+28 lines to which we render, and first render the black (until 28-r0),
+then a color dependant on the ratio (for the next r0 lines).  As there
+are 14 colors, we choose the appropriate one with 2+(r0/2).
+
+<<Render health meter>>= 
+	ldr r2, =sprite_rt
+	add r2, r2, r1, lsl #4
+        mov r1, #METER_Y
+	strb r1, [r2, #SPRT_Y]
+        mov r1, #METER_X
+	strb r1, [r2, #SPRT_X]
+
+        mov r1, #0xE000
+        mul r0, r1, r0
+        mov r0, r0, lsr #16
+
+        stmfd sp!, {r4,r5}
+
+        mov r1, #28
+        ldr r2, =health_render_spr
+        ldr r2, [r2]
+        add r2, r2, #8+2*4
+        ldr r4, =0x0FFF00F0         @ bitmap
+        add r0, r0, #1
+
+3:      cmp r1, r0
+        ldrgt r3, =0x11111111
+        movle r3, r0, lsr #1
+        addle r3, r3, #1
+        orrle r3, r3, r3, lsl #4
+        orrle r3, r3, r3, lsl #8
+        orrle r3, r3, r3, lsl #16
+        ldr r5, [r2]
+        bic r5, r5, r4
+        and r3, r3, r4
+        orr r5, r3, r5
+        str r5, [r2], #4
+        subs r1, r1, #1
+        bne 3b
+
+        ldmfd sp!, {r4,r5}
+@
+\section{Pause Screen}
+
+Well, it's no Ron Maiden, but it's a start.
+
+<<Read-only data>>= 
+msg_pause: .string "PAUSED"
+msg_crow: .string "crow mode"
+msg_spawn: .string "spawn actor"
+msg_areawarp: .string "warp to area"
+msg_arealevsep: .string "/"
+
+@ Debounce keeps track of key state to prevent double-presses.  However,
+this should be merged with the debounce in other human handlers (ie,
+Sam's).  Initial attempts at this by simply making it global failed
+miserably.
+
+<<EWRAM Variables>>= 
+debounce: .skip 2
+.align
+@
+
+<<Constants>>= 
+.equ TMP_WARPID, -20
+.equ TMP_MENUITEM, -19
+.equ TMP_SPAWNID, -18
+.equ TMP_NAREASINQUEST, -17
+.equ TMP_INTSAVE, -16
+.equ TMP_OUTCOME, -14
+    @ byte -13 free
+.equ N_DEBUG_ITEMS, 3
+@
+
+<<ARM Routines in ROM>>= 
+	.global osd_handle_pause
+osd_handle_pause:
+	mov ip, sp
+	stmfd sp!, {fp,ip,lr}
+	mov fp, ip
+	sub sp, sp, #8
+
+	mov r0, #0
+	strb r0, [fp, #TMP_MENUITEM]
+	strb r0, [fp, #TMP_OUTCOME]
+
+	ldr r1, =REG_KEY
+	ldrh r0, [r1]
+	ldr r2, =debounce
+	ldrh r3, [r2]
+
+2:	tst r0,   #KEY_START
+	tsteq r3, #KEY_START
+	mvn r3, r0
+	strh r3, [r2]
+	bne 9f
+
+        @ ``dim'' the music
+        mov r0, #1
+        bl music_set_pause
+
+	<<Darken the screen>>
+
+	@ldr r0, =REG_IME
+	@strb r0, [r0]
+
+	ldr r0, =REG_IE
+	ldrh r1, [r0]
+	strh r1, [fp, #TMP_INTSAVE]
+	bic r1, r1, #1<<INT_VBLANK
+	bic r1, r1, #1<<INT_HBLANK
+	bic r1, r1, #1<<INT_VCOUNT
+	strh r1, [r0]
+
+        ldr r0, =REG_STAT
+        ldrh r1, [r0]
+        bic r1, r1, #8
+        strh r1, [r0]
+
+	mov r0, #3
+	strb r0, [fp, #TMP_SPAWNID]
+	ldr r1, =cur_area
+	ldrb r0, [r1]
+	strb r0, [fp, #TMP_WARPID]
+	ldr r1, =cur_quest
+	ldr r0, [r1]
+	bl string_skip
+	ldrb r0, [r0]
+	strb r0, [fp, #TMP_NAREASINQUEST]
+
+	<<Setup background registers>>
+	<<Setup text subsystem>>
+
+0:	ldr r0, =REG_VCOUNT
+	ldrh r0, [r0]
+	cmp r0, #160
+	bne 0b
+	ldr r1, =REG_KEY
+	ldr r2, =debounce
+	ldrh r3, [r2]
+	ldrh r0, [r1]
+	tst r0, #KEY_START
+	tsteq r3, #KEY_START
+	beq 8f
+
+	ldr r1, =main_debug
+	ldrb r1, [r1]
+	cmp r1, #42
+	bne 5f
+
+	<<Deal with debug menu input>>
+
+5:	mvn r3, r0
+	ldr r2, =debounce
+	strh r3, [r2]
+
+	bl text_wipe
+	<<Display pause info>>
+	<<Update debug menu>>
+
+1:	bl music_update
+        bal 0b
+
+8:	mvn r3, r0
+	ldr r2, =debounce
+	strh r3, [r2]
+
+	<<Restore background registers>>
+	<<Restore the original blend settings>>
+        @ ``undim'' the music
+        mov r0, #0
+        bl music_set_pause
+
+	@ Wait for vblank one last time to sync us up.
+0:	ldr r0, =REG_VCOUNT
+	ldrh r0, [r0]
+	cmp r0, #160
+	bne 0b
+
+	ldr r0, =REG_IE
+	ldrh r1, [fp, #TMP_INTSAVE]
+	strh r1, [r0]
+
+        ldr r0, =REG_STAT
+        ldrh r1, [r0]
+        orr r1, r1, #8
+        strh r1, [r0]
+
+	@ldr r0, =REG_IME
+	@mov r1, #1
+	@strb r1, [r0]
+
+9:	ldrb r0, [fp, #TMP_OUTCOME]
+	cmp r0, #0
+	ldrneb r1, [fp, #TMP_WARPID]
+
+	ldmea fp, {fp,sp,pc}
+
+@ We turn the luminance down low for pause.  However, we avoid layer
+zero, as this is the layer used for text.  We also save the existing
+blend settings so we can restore them when we're done.
+
+<<Darken the screen>>= 
+	ldr r0, =0b11111011111110
+	ldr r1, =REG_BLDCNT
+	strh r0, [r1]
+	mov r0, #10
+	ldr r1, =REG_BLDLUMA
+	strh r0, [r1]
+
+@ We simply restore the blend settings saved above.
+
+<<Restore the original blend settings>>= 
+	ldr r0, =REG_BLDCNT
+	mov r1, #0b01000000
+	orr r1, r1, #0b001111 << 8
+	strh r1, [r0]
+	ldr r0, =REG_BLDALPHA
+	mov r1, #9
+	orr r1, r1, #12 << 8
+	strh r1, [r0]
+
+@ We take over BG0 for our own purposes here, saving its current
+settings to restore it after.  We should also be disabling sprites here.
+
+<<Setup background registers>>= 
+	ldr r0, =REG_BG0
+	ldrh r1, [r0]
+	stmfd sp!, {r1}
+
+	mov r1, #31<<8
+	orr r1, r1, #0b1100
+	strh r1, [r0]
+	ldr r0, =REG_BG0SCX
+	mov r1, #0
+	str r1, [r0]
+
+@ Note we also need to induce a world switch twice so that BG0 will be
+reloaded, otherwise all kinds of funky text will be in the foreground.
+Also, the background scroll registers are unfortunately write-only, so
+preserving them is impossible and we have to force a camera jump
+instead.
+
+<<Restore background registers>>= 
+	ldmfd sp!, {r1}
+	ldr r0, =REG_BG0
+	strh r1, [r0]
+	ldr r0, =cur_world
+	ldrb r0, [r0]
+        ldr r1, =layer_set_world
+        mov lr, pc
+        mov pc, r1
+	ldr r0, =camera_x
+	ldrh r0, [r0]
+	ldr r1, =camera_y
+	ldrh r1, [r1]
+	stmfd sp!, {r0,r1}
+	mov r2, #0
+	bl layer_jumpcamera
+	ldmfd sp!, {r0,r1}
+	mov r2, #1
+	bl layer_jumpcamera
+
+@ Ideally, we'd set up the end of the background palette with a few sane
+text palette entries, too.  Oh wait, that's what we're doing.
+
+<<Setup text subsystem>>= 
+	mov r0, #31
+	mov r1, #3
+	bl text_init
+	ldr r0, =main_palette
+	ldr r1, =palram_base
+	add r1, r1, #2*(256-4*16)
+	mov r2, #4*16
+2:	ldrh r3, [r0], #2
+	strh r3, [r1], #2
+	subs r2, r2, #1
+	bne 2b
+	ldr r0, =main_font
+	bl text_setfont
+	mov r0, #14
+	bl text_setpalette
+
+@ Here, we put a big PAUSE on the top of the screen, and display the
+hero's archetype name and coordinates.  As well as the name of their
+quest and their area/level numbers.  In the future we'll also display
+the name of the level they're in.
+
+<<Display pause info>>= 
+	bl text_wipe
+
+	mov r0, #14
+	bl text_setpalette
+	ldr r0, =msg_pause
+	mov r1, #5
+	mov r2, #3
+	bl text_puts
+
+	mov r0, #12
+	bl text_setpalette
+	ldr r0, =hero_handle
+	ldrb r0, [r0]
+	ldr r1, =actor_rt
+	add r1, r1, r0, lsl #5
+	ldrh r1, [r1, #ACTRT_TYPE]
+	mov r1, r1, lsl #1
+	ldr r0, =archetype_table
+	ldrh r1, [r0, r1]
+	add r0, r0, r1, lsl #2
+	add r0, r0, #7
+	ldrb r1, [r0], #1
+	add r0, r0, r1, lsl #3
+	add r0, r0, #20
+	mov r1, #0
+	mov r2, #18
+	bl text_puts
+
+	mov r0, #14
+	bl text_setpalette
+	ldr r1, =cur_quest
+	ldr r1, [r1]
+        mov r0, r1
+        bl string_skip
+        add r0, r0, #12
+        ldr r1, =cur_area
+        ldrb r1, [r1]
+        add r0, r0, r1, lsl #2
+        ldr r0, [r0]
+	mov r1, #0
+	mov r2, #17
+	bl text_puts
+
+	mov r0, #15
+	bl text_setpalette
+	ldr r0, =cur_area
+	ldrb r0, [r0]
+	mov r1, #17
+	mov r2, #17
+	bl text_putd
+	mov r0, #14
+	bl text_setpalette
+	ldr r0, =msg_arealevsep
+	mov r1, #20
+	mov r2, #17
+	bl text_puts
+	mov r0, #15
+	bl text_setpalette
+	ldrb r0, [fp, #TMP_NAREASINQUEST]
+	mov r1, #22
+	mov r2, #17
+	bl text_putd
+
+	mov r0, #15
+	bl text_setpalette
+	ldr r0, =hero_handle
+	ldrb r0, [r0]
+	ldr r1, =actor_rt
+	add r1, r1, r0, lsl #5
+	ldrh r0, [r1, #ACTRT_X]
+	mov r1, #15
+	mov r2, #18
+	bl text_putd
+
+	mov r0, #13
+	bl text_setpalette
+	ldr r0, =hero_handle
+	ldrb r0, [r0]
+	ldr r1, =actor_rt
+	add r1, r1, r0, lsl #5
+	ldrh r0, [r1, #ACTRT_Y]
+	mov r1, #21
+	mov r2, #18
+	bl text_putd
+
+@ The debug menu gives the player the opportunity to transform into a
+crow and other silly things.  We present it only if the [[main_debug]]
+flag is set.  (see [[main]] module)
+
+<<Update debug menu>>= 
+	ldr r0, =main_debug
+	ldrb r0, [r0]
+	cmp r0, #42
+	bne 1f
+
+	ldrb r0, [fp, #TMP_MENUITEM]
+	cmp r0, #0
+	movne r0, #13
+	moveq r0, #15
+	bl text_setpalette
+	ldr r0, =msg_crow
+	mov r1, #4
+	mov r2, #6
+	bl text_puts
+
+	ldrb r0, [fp, #TMP_MENUITEM]
+	cmp r0, #1
+	movne r0, #13
+	moveq r0, #15
+	bl text_setpalette
+	ldr r0, =msg_spawn
+	mov r1, #4
+	mov r2, #7
+	bl text_puts
+	mov r0, #15
+	bl text_setpalette
+	ldrb r0, [fp, #TMP_SPAWNID]
+	mov r1, #16
+	mov r2, #7
+	bl text_putd
+
+	ldrb r0, [fp, #TMP_MENUITEM]
+	cmp r0, #2
+	movne r0, #13
+	moveq r0, #15
+	bl text_setpalette
+	ldr r0, =msg_areawarp
+	mov r1, #4
+	mov r2, #8
+	bl text_puts
+	mov r0, #15
+	bl text_setpalette
+	ldrb r0, [fp, #TMP_WARPID]
+	mov r1, #16
+	mov r2, #8
+	bl text_putd
+
+        mov r0, #12
+	bl text_setpalette
+        ldr r0, =debug_val1
+        ldr r0, [r0]
+        mov r1, #0
+        mov r2, #15
+        bl text_putd
+        ldr r0, =debug_val2
+        ldr r0, [r0]
+        mov r1, #10
+        mov r2, #15
+        bl text_putd
+
+1:
+@ These variables exist to allow other modules to dump debug information
+into the pause display in real-time.
+
+<<EWRAM Variables>>= 
+        .global debug_bytes
+debug_bytes: .skip 32
+        .global debug_val1, debug_val2
+debug_val1: .skip 4
+debug_val2: .skip 4
+
+<<Deal with debug menu input>>= 
+	tst r0, #KEY_DOWN
+	tsteq r3, #KEY_DOWN
+	bne 1f
+
+	ldrb r3, [fp, #TMP_MENUITEM]
+	add r3, r3, #1
+	cmp r3, #N_DEBUG_ITEMS
+	movge r3, #0
+	strb r3, [fp, #TMP_MENUITEM]
+	bal 5f
+
+1:	tst r0, #KEY_UP
+	tsteq r3, #KEY_UP
+	bne 1f
+
+	ldrb r3, [fp, #TMP_MENUITEM]
+	subs r3, r3, #1
+	movlt r3, #N_DEBUG_ITEMS-1
+	strb r3, [fp, #TMP_MENUITEM]
+	bal 5f
+
+1:	tst r0, #KEY_LEFT
+	tsteq r3, #KEY_LEFT
+	bne 1f
+
+	ldrb r3, [fp, #TMP_MENUITEM]
+	cmp r3, #1
+	bne 2f
+	ldrb r3, [fp, #TMP_SPAWNID]
+	subs r3, r3, #1
+	movlt r3, #NARCHETYPES-1
+	strb r3, [fp, #TMP_SPAWNID]
+	bal 5f
+
+2:	ldrb r3, [fp, #TMP_MENUITEM]
+	cmp r3, #2
+	bne 1f
+	ldrb r3, [fp, #TMP_WARPID]
+	subs r3, r3, #1
+	ldrltb r3, [fp, #TMP_NAREASINQUEST]
+	sublt r3, r3, #1
+	strb r3, [fp, #TMP_WARPID]
+	bal 5f
+
+1:	tst r0, #KEY_RIGHT
+	tsteq r3, #KEY_RIGHT
+	bne 1f
+
+	ldrb r3, [fp, #TMP_MENUITEM]
+	cmp r3, #1
+	bne 2f
+	ldrb r3, [fp, #TMP_SPAWNID]
+	add r3, r3, #1
+	cmp r3, #NARCHETYPES
+	movge r3, #0
+	strb r3, [fp, #TMP_SPAWNID]
+	bal 5f
+
+2:	ldrb r3, [fp, #TMP_MENUITEM]
+	cmp r3, #2
+	bne 1f
+	ldrb r3, [fp, #TMP_WARPID]
+	add r3, r3, #1
+	ldrb r1, [fp, #TMP_NAREASINQUEST]
+	cmp r3, r1
+	movge r3, #0
+	strb r3, [fp, #TMP_WARPID]
+	bal 5f
+
+1:	tst r0, #KEY_A
+	tsteq r3, #KEY_A
+	bne 5f
+
+	ldrb r3, [fp, #TMP_MENUITEM]
+	cmp r3, #0
+	bne 6f
+
+	<<Enter crow mode>>
+
+	bal 5f
+6:	cmp r3, #1
+	bne 6f
+
+	<<Debug spawn actor>>
+
+	bal 5f
+6:	cmp r3, #2
+	bne 5f
+
+	<<Warp to given area>>
+
+	bal 5f
+
+@ We enter crow mode by changing the actor's type and resetting their
+parts.  Exiting crow mode is a little trickier, so this isn't
+implemented yet.
+
+<<Enter crow mode>>= 
+        stmfd sp!, {r0}
+	ldr r0, =hero_handle
+	ldrb r0, [r0]
+	ldr r1, =actor_rt
+	add r0, r1, r0, lsl #5
+	mov r1, #ARCH_CROW
+	strh r1, [r0, #ACTRT_TYPE]
+	stmfd sp!, {r0}
+	bl remove_parts
+	ldmfd sp!, {r0}
+	mov r1, #1		    @ number of parts in a crow
+	strb r1, [r0, #ACTRT_NPARTS]
+	bl add_parts
+	ldmfd sp!, {r0}
+
+@ In order to spawn an arbitrary actor, we first construct an
+appropriate const, in RAM.  Then we add it to the actor set.  We need 16
+bytes of RAM to do this, as we set aside an (empty) 8 byte state just in
+case the actor needs some state.  This is hardly the most efficient way
+to do things, but for the purpose of debugging, should be fine.
+
+<<Debug spawn actor>>= 
+	stmfd sp!, {r0}
+	mov r0, #16
+	bl ewram_alloc
+
+	mov r3, r0
+
+	ldrb r1, [fp, #TMP_SPAWNID]
+	strh r1, [r0], #2
+
+	mov r1, #0
+	strb r1, [r0], #1
+
+	mov r1, #0b111
+	ldr r2, =cur_world
+	ldrb r2, [r2]
+	cmp r2, #0
+	orreq r1, r1, #0b010000
+	orrne r1, r1, #0b100000
+	strb r1, [r0], #1
+
+	ldr r1, =hero_handle
+	ldrb r1, [r1]
+	ldr r2, =actor_rt
+	add r2, r2, r1, lsl #5
+	ldrh r1, [r2, #ACTRT_X]
+	strh r1, [r0], #2
+	ldrh r1, [r2, #ACTRT_Y]
+	strh r1, [r0], #2
+
+	mov r1, #7
+	strb r1, [r0], #1
+
+	@ XXX fill out state with zeros here?
+
+	mov r0, r3
+	stmfd sp!, {r0}
+	bl actor_add
+	bl add_parts
+	ldmfd sp!, {r0}
+
+	bl ewram_free
+	ldmfd sp!, {r0}
+
+@ Nothing too tough... we force an outcome to warp to the appropriate
+level immediately.  Label 8 is the official pause screen escape route,
+by the way.  Oh, and I guess you've noticed the ridiculous contortions
+we go through here and in the game module to provide this little
+service.
+
+<<Warp to given area>>= 
+	mov r3, r0
+	ldrb r1, [fp, #TMP_WARPID]
+	mov r0, #OUTCOME_AREACHANGE
+	strb r0, [fp, #TMP_OUTCOME]
+	mov r0, r3
+	bal 8f
+@
+
+% EOF osd.nws

@@ -1,0 +1,304 @@
+#!Rosegarden
+#
+#  Musical Notation File
+#
+
+RV21
+
+
+Staves 3
+
+
+Name Staff 1
+Clef
+	Clef Name Treble
+Rest
+	Semibreve rest
+Rest
+	Semibreve rest
+: Crotchet 0 1 7 0 0 "e"
+Group
+	Tupled 16 3
+	: Quaver 0 1 7 0 0 "e"
+	: Quaver 0 1 7 0 0 "e"
+	: Quaver 0 1 7 0 0 "e"
+	End
+: Crotchet 0 1 7 0 0 "e"
+: Crotchet 0 1 6 0 0 "d"
+: Crotchet 0 1 5 0 0 "c"
+Group
+	Tupled 16 3
+	: Quaver 0 1 5 0 0 "c"
+	: Quaver 0 1 5 0 0 "c"
+	: Quaver 0 1 5 0 0 "c"
+	End
+: Crotchet 0 1 5 0 0 "c"
+: Crotchet 0 1 4 0 0 "b"
+: Crotchet 0 1 3 0 0 "a"
+Group
+	Tupled 16 3
+	: Quaver 0 1 3 0 0 "a"
+	: Quaver 0 1 3 0 0 "a"
+	: Quaver 0 1 3 0 0 "a"
+	End
+: Crotchet 0 1 3 0 0 "a"
+: Crotchet 0 1 4 0 0 "b"
+: Crotchet 0 1 5 0 0 "c"
+Group
+	Tupled 16 3
+	: Quaver 0 1 5 0 0 "c"
+	: Quaver 0 1 5 0 0 "c"
+	: Quaver 0 1 5 0 0 "c"
+	End
+: Crotchet 0 1 5 0 0 "c"
+: Crotchet 0 1 6 0 0 "d"
+: Crotchet 0 1 7 0 0 "e"
+Group
+	Tupled 16 3
+	: Quaver 0 1 7 0 0 "e"
+	: Quaver 0 1 7 0 0 "e"
+	: Quaver 0 1 7 0 0 "e"
+	End
+: Crotchet 0 1 7 0 0 "e"
+: Crotchet 0 1 6 0 0 "d"
+: Crotchet 0 1 5 0 0 "c"
+Group
+	Tupled 16 3
+	: Quaver 0 1 5 0 0 "c"
+	: Quaver 0 1 5 0 0 "c"
+	: Quaver 0 1 5 0 0 "c"
+	End
+: Crotchet 0 1 5 0 0 "c"
+: Crotchet 0 1 4 0 0 "b"
+: Crotchet 0 1 3 0 0 "a"
+Group
+	Tupled 16 3
+	: Quaver 0 1 3 0 0 "a"
+	: Quaver 0 1 3 0 0 "a"
+	: Quaver 0 1 3 0 0 "a"
+	End
+: Crotchet 0 1 3 0 0 "a"
+: Crotchet 0 1 4 0 0 "b"
+: Crotchet 0 1 5 0 0 "c"
+Group
+	Tupled 16 3
+	: Quaver 0 1 5 0 0 "c"
+	: Quaver 0 1 5 0 0 "c"
+	: Quaver 0 1 5 0 0 "c"
+	End
+: Crotchet 0 1 5 0 0 "c"
+: Crotchet 0 1 6 0 0 "d"
+: Crotchet 0 1 8 0 0 "f"
+: Crotchet 0 1 10 0 0 "a"
+: Crotchet 0 1 12 0 0 "c"
+: Crotchet 0 1 10 0 0 "a"
+: Crotchet 0 1 9 0 0 "g"
+: Crotchet 0 1 7 0 0 "e"
+: Crotchet 0 1 11 0 0 "b"
+: Crotchet 0 1 7 0 0 "e"
+: Crotchet 0 1 5 0 0 "c"
+: Crotchet 0 1 7 0 0 "e"
+: Crotchet 0 1 10 0 0 "a"
+: Crotchet 0 1 7 0 0 "e"
+: Crotchet 0 1 7 0 0 "e"
+: Crotchet 0 1 9 0 0 "g"
+: Crotchet 0 1 12 0 0 "c"
+: Crotchet 0 1 9 0 0 "g"
+: Crotchet 0 1 8 0 0 "f"
+: Crotchet 0 1 10 0 0 "a"
+: Crotchet 0 1 12 0 0 "c"
+: Crotchet 0 1 10 0 0 "a"
+: Crotchet 0 1 9 0 0 "g"
+: Crotchet 0 1 7 0 0 "e"
+: Crotchet 0 1 11 0 0 "b"
+: Crotchet 0 1 7 0 0 "e"
+: Crotchet 0 1 5 0 0 "c"
+: Crotchet 0 1 7 0 0 "e"
+: Crotchet 0 1 10 0 0 "a"
+: Crotchet 0 1 12 0 0 "c"
+: Crotchet 0 1 14 0 0 "e"
+: Crotchet 0 1 12 0 0 "c"
+: Crotchet 0 1 9 0 0 "g"
+: Crotchet 0 1 7 0 0 "e"
+End
+
+Name Staff 2
+Clef
+	Clef Name Alto  
+End
+
+Name Staff 3
+Clef
+	Clef Name Bass  
+: Crotchet 0 3 3 0 5 0 7 0 0 "Am"
+Group
+	Tupled 16 3
+	: Quaver 0 1 3 0 0 "a"
+	: Quaver 0 1 3 0 0 "a"
+	: Quaver 0 1 3 0 0 "a"
+	End
+: Crotchet 0 1 3 0 0 "a"
+: Crotchet 0 3 2 0 4 0 6 0 0 "G"
+: Crotchet 0 3 3 0 5 0 7 0 0 "Am"
+Group
+	Tupled 16 3
+	: Quaver 0 1 3 0 0 "a"
+	: Quaver 0 1 3 0 0 "a"
+	: Quaver 0 1 3 0 0 "a"
+	End
+: Crotchet 0 1 3 0 0 "a"
+: Crotchet 0 3 0 0 4 0 7 0 0 "E5"
+: Crotchet 0 3 3 0 5 0 7 0 0 "Am"
+Group
+	Tupled 16 3
+	: Quaver 0 1 3 0 0 "a"
+	: Quaver 0 1 3 0 0 "a"
+	: Quaver 0 1 3 0 0 "a"
+	End
+: Crotchet 0 1 3 0 0 "a"
+: Crotchet 0 3 2 0 4 0 6 0 0 "G"
+: Crotchet 0 3 3 0 5 0 7 0 0 "Am"
+Group
+	Tupled 16 3
+	: Quaver 0 1 3 0 0 "a"
+	: Quaver 0 1 3 0 0 "a"
+	: Quaver 0 1 3 0 0 "a"
+	End
+: Crotchet 0 1 3 0 0 "a"
+: Crotchet 0 3 0 0 4 0 7 0 0 "E5"
+: Crotchet 0 3 3 0 5 0 7 0 0 "Am"
+Group
+	Tupled 16 3
+	: Quaver 0 1 3 0 0 "a"
+	: Quaver 0 1 3 0 0 "a"
+	: Quaver 0 1 3 0 0 "a"
+	End
+: Crotchet 0 1 3 0 0 "a"
+: Crotchet 0 3 2 0 4 0 6 0 0 "G"
+: Crotchet 0 3 3 0 5 0 7 0 0 "Am"
+Group
+	Tupled 16 3
+	: Quaver 0 1 3 0 0 "a"
+	: Quaver 0 1 3 0 0 "a"
+	: Quaver 0 1 3 0 0 "a"
+	End
+: Crotchet 0 1 3 0 0 "a"
+: Crotchet 0 3 0 0 4 0 7 0 0 "E5"
+: Crotchet 0 3 3 0 5 0 7 0 0 "Am"
+Group
+	Tupled 16 3
+	: Quaver 0 1 3 0 0 "a"
+	: Quaver 0 1 3 0 0 "a"
+	: Quaver 0 1 3 0 0 "a"
+	End
+: Crotchet 0 1 3 0 0 "a"
+: Crotchet 0 3 2 0 4 0 6 0 0 "G"
+: Crotchet 0 3 3 0 5 0 7 0 0 "Am"
+Group
+	Tupled 16 3
+	: Quaver 0 1 3 0 0 "a"
+	: Quaver 0 1 3 0 0 "a"
+	: Quaver 0 1 3 0 0 "a"
+	End
+: Crotchet 0 1 3 0 0 "a"
+: Crotchet 0 3 0 0 4 0 7 0 0 "E5"
+: Crotchet 0 3 3 0 5 0 7 0 0 "Am"
+Group
+	Tupled 16 3
+	: Quaver 0 1 3 0 0 "a"
+	: Quaver 0 1 3 0 0 "a"
+	: Quaver 0 1 3 0 0 "a"
+	End
+: Crotchet 0 1 3 0 0 "a"
+: Crotchet 0 3 2 0 4 0 6 0 0 "G"
+: Crotchet 0 3 3 0 5 0 7 0 0 "Am"
+Group
+	Tupled 16 3
+	: Quaver 0 1 3 0 0 "a"
+	: Quaver 0 1 3 0 0 "a"
+	: Quaver 0 1 3 0 0 "a"
+	End
+: Crotchet 0 1 3 0 0 "a"
+: Crotchet 0 3 0 0 4 0 7 0 0 "E5"
+: Crotchet 0 3 1 0 3 0 5 0 0 "F"
+Group
+	Tupled 16 3
+	: Quaver 0 3 1 0 3 0 5 0 0 "F"
+	: Quaver 0 3 1 0 3 0 5 0 0 "F"
+	: Quaver 0 3 1 0 3 0 5 0 0 "F"
+	End
+: Crotchet 0 3 1 0 3 0 5 0 0 "F"
+: Crotchet 0 3 1 0 3 0 5 0 0 "F"
+: Crotchet 0 3 2 0 4 0 6 0 0 "G"
+Group
+	Tupled 16 3
+	: Quaver 0 3 2 0 4 0 6 0 0 "G"
+	: Quaver 0 3 2 0 4 0 6 0 0 "G"
+	: Quaver 0 3 2 0 4 0 6 0 0 "G"
+	End
+: Crotchet 0 3 2 0 4 0 6 0 0 "G"
+: Crotchet 0 3 2 0 4 0 6 0 0 "G"
+: Crotchet 0 3 3 0 5 0 7 0 0 "Am"
+Group
+	Tupled 16 3
+	: Quaver 0 3 3 0 5 0 7 0 0 "Am"
+	: Quaver 0 3 3 0 5 0 7 0 0 "Am"
+	: Quaver 0 3 3 0 5 0 7 0 0 "Am"
+	End
+: Crotchet 0 3 3 0 5 0 7 0 0 "Am"
+: Crotchet 0 3 3 0 5 0 7 0 0 "Am"
+: Crotchet 0 3 5 0 7 0 9 0 0 "C"
+Group
+	Tupled 16 3
+	: Quaver 0 3 5 0 7 0 9 0 0 "C"
+	: Quaver 0 3 5 0 7 0 9 0 0 "C"
+	: Quaver 0 3 5 0 7 0 9 0 0 "C"
+	End
+: Crotchet 0 3 5 0 7 0 9 0 0 "C"
+: Crotchet 0 3 5 0 7 0 9 0 0 "C"
+: Crotchet 0 3 1 0 3 0 5 0 0 "F"
+Group
+	Tupled 16 3
+	: Quaver 0 3 1 0 3 0 5 0 0 "F"
+	: Quaver 0 3 1 0 3 0 5 0 0 "F"
+	: Quaver 0 3 1 0 3 0 5 0 0 "F"
+	End
+: Crotchet 0 3 1 0 3 0 5 0 0 "F"
+: Crotchet 0 3 1 0 3 0 5 0 0 "F"
+: Crotchet 0 3 2 0 4 0 6 0 0 "G"
+Group
+	Tupled 16 3
+	: Quaver 0 3 2 0 4 0 6 0 0 "G"
+	: Quaver 0 3 2 0 4 0 6 0 0 "G"
+	: Quaver 0 3 2 0 4 0 6 0 0 "G"
+	End
+: Crotchet 0 3 2 0 4 0 6 0 0 "G"
+: Crotchet 0 3 2 0 4 0 6 0 0 "G"
+: Crotchet 0 3 3 0 5 0 7 0 0 "Am"
+Group
+	Tupled 16 3
+	: Quaver 0 3 3 0 5 0 7 0 0 "Am"
+	: Quaver 0 3 3 0 5 0 7 0 0 "Am"
+	: Quaver 0 3 3 0 5 0 7 0 0 "Am"
+	End
+: Crotchet 0 3 3 0 5 0 7 0 0 "Am"
+: Crotchet 0 3 3 0 5 0 7 0 0 "Am"
+: Crotchet 0 3 5 0 7 0 9 0 0 "C"
+Group
+	Tupled 16 3
+	: Quaver 0 3 5 0 7 0 9 0 0 "C"
+	: Quaver 0 3 5 0 7 0 9 0 0 "C"
+	: Quaver 0 3 5 0 7 0 9 0 0 "C"
+	End
+: Crotchet 0 3 5 0 7 0 9 0 0 "C"
+: Crotchet 0 3 5 0 7 0 9 0 0 "C"
+End
+
+Bar 0 0 time 4 4
+Bar 1 0 time 4 4
+Bar 2 0 time 4 4
+Stave 0 tags 1 1 connected 0 program 73
+Stave 1 tags 1 1 connected 0 program 0
+Stave 2 tags 1 1 connected 0 program 44
+
+End

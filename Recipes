@@ -1,0 +1,185 @@
+/*
+ * Convergence Recipes file
+ * General rules for cooking things.
+ *
+ * $Id: Recipes,v 1.9 2002/12/07 18:03:44 tek Exp $
+ */
+
+all: [all]
+set default;
+
+if [not [defined dot_clean]] then
+    dot_clean = ;
+
+
+if [not [defined c_incl]] then
+    c_incl = [find_command c_incl];
+
+
+clean:
+{
+    rm -f [dot_clean]
+	set clearstat;
+}
+
+clobber: clean
+{
+    rm -f [all]
+	set clearstat;
+}
+
+
+/*
+ * Assembler rules.
+ */
+
+
+if [not [defined notangle]] then
+    notangle = [find_command notangle];
+
+
+%.bin: %
+{
+    [objcopy] -Obinary % %.bin;
+}
+
+/* literate assembler */
+%0%.s: %0%.nws
+{
+    [notangle] "-L'.line %%L%%N'" outline.nws %0%.nws > %0%.s;
+}
+
+%0%.o: %0%.s
+{
+    [as] [asflags] -o %0%.o %0%.s;
+}
+
+%0.%.s.d: %0%.s
+    set nocascade
+{
+    asm_incl %0%.s "'cascade %0%.s ='" "';'" > %0.%.s.d;
+}
+
+
+%0.%.inc.d: %0%.inc
+    set nocascade
+{
+    asm_incl %0%.inc "'cascade %0%.inc ='" "';'" > %0.%.inc.d;
+}
+
+%.a: [[target]_objs]
+{
+    [ar] rcs [target] [resolve [[target]_objs]];
+}
+
+
+/*
+ * map rules
+ */
+
+mortimer = mortimer;
+pcx2lns = pcx2lns;
+nancy = nancy;
+
+%0%.s: %0%.lvd
+{
+    lorraine %0%.lvd > %0%.s;
+}
+
+%0%.mrle: %0%.map
+{
+    echo Unable to intelligently continue for %0%.mrle -- touch the lvd;
+}
+
+%0%.map %0%.tiles: %0%.pcx
+{
+    [mortimer] -P %0%.pcx;
+}
+
+
+%0%.map %0%.tiles %0%.pal: %0%.pcx
+{
+    [mortimer] %0%.pcx;
+}
+
+%0%.lnd %0alpha_sp.tree %0beta_sp.tree: %0alpha_sp.pcx %0beta_sp.pcx
+{
+    [pcx2lns] %0alpha_sp.pcx > %0alpha_sp.lns;
+    [pcx2lns] %0beta_sp.pcx > %0beta_sp.lns;
+    [nancy] %0% %0alpha_sp.lns %0beta_sp.lns;
+}
+
+
+/*
+ * raw rules
+ */
+
+roz = roz;
+
+%0%.raw: %0%.pcx
+{
+    [roz] %0%.pcx;
+}
+
+%0%.raw256 %0%.pal: %0%.pcx
+{
+    [roz] -millersoft -p %0%.pcx;
+}
+
+%0%.raw256: %0%.pcx
+{
+    [roz] -millersoft %0%.pcx;
+}
+
+
+/*
+ * ocaml rules
+ */
+
+if [not [defined ocamloptflags]] then ocamloptflags = ;
+
+%0%.cmx: %0%.ml
+{
+    ocamlopt -c [ocamloptflags] %0%.ml;
+}
+
+%0%: %0%.cmx
+{
+    ocamlopt -o [target] [[target]_objs];
+}
+
+%0%.cmi: %0%.mli
+{
+    ocamlopt -c [ocamloptflags] %0%.mli;
+}
+
+%0.%.ml.d: %0%.ml
+    set nocascade
+{
+    ocaml_incl %0%.ml "'cascade %0%.ml ='" "';'" > %0.%.ml.d;
+}
+
+
+%0.%.mli.d: %0%.mli
+    set nocascade
+{
+    ocaml_incl %0%.mli "'cascade %0%.mli ='" "';'" > %0.%.mli.d;
+}
+
+/*
+ * Haskell rules
+ */
+
+if [not [defined haskellc]] then haskellc = ghc ;
+
+%0%.ho: %0%.lhs
+{
+    [haskellc] -c -o [target] %0%.lhs;
+}
+
+%0%: %0%.ho
+{
+    [haskellc] -o [target] [[target]_objs];
+}
+
+/* EOF Recipes */

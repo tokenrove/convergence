@@ -1,0 +1,74 @@
+
+#
+# level description file -- courtyard
+# Convergence
+# $Id: courtyard.lvd,v 1.7 2002/12/08 22:13:01 retsyn Exp $
+# 
+
+name courtyard
+mode 0
+tilesets 3
+alpha_palette levels/courtyard/alpha_bg.pal
+beta_palette levels/courtyard/beta_bg.pal
+line_bank levels/courtyard/courtyard.lnd
+alpha_segtree levels/courtyard/alpha_sp.tree
+beta_segtree levels/courtyard/beta_sp.tree
+
+###
+# Tilesets
+#
+
+tileset alpha_cl { bank 1 global file levels/courtyard/alpha_cl.tiles }
+tileset alpha_bg { bank 2 global file levels/courtyard/alpha_bg.tiles }
+tileset alpha_fg { bank 3 file levels/courtyard/alpha_fg.tiles }
+tileset beta_cl { bank 1 global file levels/courtyard/beta_cl.tiles }
+tileset beta_bg { bank 2 global file levels/courtyard/beta_bg.tiles }
+tileset beta_fg { bank 3 file levels/courtyard/beta_fg.tiles }
+
+
+###
+# Layers
+#
+
+layer alpha_fg { width 189 height 26  tile_bank 3  priority 2
+    map_bank 0  scroll_speed 128  source levels/courtyard/alpha_fg.map }
+layer alpha_bg { width 128 height 26  tile_bank 2  priority 3
+    map_bank 1  scroll_speed 70  source levels/courtyard/alpha_bg.map global loop horizontal }
+layer alpha_cl { width 64  height 26  tile_bank 1  priority 3
+    map_bank 2  scroll_speed 25   source levels/courtyard/alpha_cl.map global loop horizontal }
+no_layer
+
+layer beta_fg { width 189 height 26  tile_bank 3  priority 2
+    map_bank 3  scroll_speed 128  source levels/courtyard/beta_fg.map }
+layer beta_bg { width 128 height 26  tile_bank 2  priority 3
+    map_bank 4  scroll_speed 70  source levels/courtyard/beta_bg.map global loop horizontal }
+layer beta_cl { width 64  height 26  tile_bank 1  priority 3
+    map_bank 5  scroll_speed 25   source levels/courtyard/beta_cl.map global loop horizontal }
+no_layer
+
+
+###
+# Actors
+#
+
+actor_cluster {
+    type ARCH_CROW  beta  easy normal hard  y 142
+    blank_state 0
+} [ x 100 ; x 300 ; x 200 ; x 140 ]
+
+actor_cluster {
+    type ARCH_GREEN_TROOPER  alpha  easy normal  y 152
+    blank_state 0
+} [ x 296 ; x 336 ; x 376 ; x 412 hard ; x 446 hard ; x 920 ; x 960 ; x 992 ; x 1032 hard ;
+    x 1038 hard ; x 1028 hard ]
+
+actor_cluster {
+    alpha  easy normal hard  y 152  blank_state 0
+}  [ type ARCH_JOEY  x 376 ; type ARCH_ROB  x 341 ; type ARCH_JON  x 351 ]
+
+actor { type ARCH_BLUE_STEVE  alpha  easy normal hard  x 736  y 48  blank_state 5 }
+
+
+# EOF courtyard.lvd
+
+    

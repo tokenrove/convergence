@@ -1,0 +1,43 @@
+
+<<*>>=
+
+<<Files to include>>
+<<Constants>>
+<<Macros>>
+
+	.section .text
+	.arm
+	.align
+
+	<<ARM Routines in ROM>>
+
+	.section .iwram_code, "ax", %progbits
+	.arm
+	.align
+
+	<<ARM Routines in IWRAM>>
+
+	.section .iwram
+	.align
+
+	<<IWRAM Variables>>
+
+	.section .ewram
+	.align
+
+	<<EWRAM Variables>>
+
+	.section .rodata
+	.align
+
+	<<Read-only data>>
+
+<<Files to include>>=
+<<Constants>>=
+<<Macros>>=
+<<ARM Routines in ROM>>=
+<<ARM Routines in IWRAM>>=
+<<IWRAM Variables>>=
+<<EWRAM Variables>>=
+<<Read-only data>>=
+

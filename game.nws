@@ -1,0 +1,310 @@
+% game -- marshalls the main bit, the in-game subsystems
+% Convergence
+% Copyright Pureplay Games / 2002
+%
+% $Id: game.nws,v 1.17 2002/12/11 16:37:19 tek Exp $
+
+
+<<Files to include>>= 
+	.include "gba.inc"
+	.include "game.inc"
+	.include "actor.inc"
+
+@ Three lives to live.
+
+<<Constants>>= 
+.equ N_INITIAL_LIVES, 3
+
+@
+The [[cur_area]] variable is much like main's [[cur_level]] variable,
+but it stores the hero's current offset into the quest, where he goes
+when he dies but hasn't lost all his lives.
+
+<<EWRAM Variables>>= 
+	.global cur_area
+cur_area: .skip 1
+cur_lives: .skip 1
+.align
+
+@ {\tt game\_start} \\
+
+Starts the in-game mode, with the given level.  Returns the outcome
+from the in-game mode when finished.
+
+<<ARM Routines in ROM>>= 
+	.global game_start
+game_start:
+	stmfd sp!, {lr}
+
+	@ Set the current area equal to the current level.
+	ldr r0, =cur_level
+	ldrb r0, [r0]
+	ldr r1, =cur_area
+	strb r0, [r1]
+	ldr r1, =cur_lives
+	mov r0, #N_INITIAL_LIVES
+	strb r0, [r1]
+
+0:	<<Initialize subsystems>>
+
+	<<Load the current area>>
+
+	ldr r0, =hero_handle
+	ldrb r0, [r0]
+	ldr r1, =actor_rt
+	add r0, r1, r0, lsl #5
+	bl osd_meter_init
+
+	mov r0, #15
+	bl fade_in
+
+	<<Setup interrupts>>
+
+	@ Enter the main (non-vblank) loop
+	bl game_loop
+
+	stmfd sp!, {r0,r1}
+	<<Shutdown subsystems>>
+	mov r0, #15
+	bl fade_out
+	ldmfd sp!, {r0,r1}
+
+	<<Check outcome>>
+
+9:	ldmfd sp!, {lr}
+	bx lr
+
+@ We load up the current area from the quests table.
+
+<<Load the current area>>= 
+	ldr r0, =cur_quest
+	ldr r0, [r0]
+	bl string_skip
+	add r0, r0, #12
+	ldr r1, =cur_area
+	ldrb r1, [r1]
+	add r0, r0, r1, lsl #2
+	ldr r0, [r0]
+
+	bl level_load
+
+@ The outcome possibilities are as follows: the hero died; the hero
+caused a room movement trigger; the hero caused a level movement
+trigger.
+
+Here we check the [[game_loop]] result, decide whether we have to just
+fade between rooms or actually return (end of level or game over).
+
+If the outcome so happens to be death, we take away one of the player's
+lives.  If they've run out of lives, we return the death outcome to the
+level above, where they will probably get the game over screen.
+Otherwise, we just restart them from the beginning of the level they
+were in.
+
+<<Check outcome>>= 
+	cmp r0, #OUTCOME_DEAD
+	bne 1f
+
+	ldr r2, =cur_lives
+	ldrb r1, [r2]
+	subs r1, r1, #1
+	beq 9f
+	strb r1, [r2]
+	bal 0b
+
+@ If the outcome is an area change, we setup the next area and loop.
+
+<<Check outcome>>= 
+1:	cmp r0, #OUTCOME_AREACHANGE
+	bne 1f
+
+	ldr r2, =cur_area
+	strb r1, [r2]
+
+	bal 0b
+
+1:	cmp r0, #OUTCOME_LEVELCHANGE
+	bne 1f
+
+	bal 9f
+
+1:
+
+@ Setup interrupts and hook the vblank routine.
+
+<<Setup interrupts>>= 
+	bl intr_init
+	mov r0, #INT_VBLANK
+	ldr r1, =game_vbl
+	bl intr_enable
+	ldr r0, =REG_STAT
+	mov r1, #0b1000
+	strh r1, [r0]
+
+	bl music_init
+
+@ The order of initializations and shutdowns is somewhat important.
+Note that we initialize music after initializing interrupts.
+
+<<Initialize subsystems>>= 
+	bl sprite_init
+	bl collision_init
+	bl dynpal_init
+	bl rotfield_alloc_init
+	bl actor_init
+	bl ephemeral_init
+	bl physics_init
+	bl level_init
+@
+<<Shutdown subsystems>>= 
+	bl intr_shutdown
+	bl osd_meter_shutdown
+	@bl ephemeral_shutdown
+	bl actor_shutdown
+	bl dynpal_shutdown
+	@bl level_shutdown
+        bl music_shutdown
+@
+
+{\tt game\_loop}
+
+The indefinite in-game loop which deals with non-vblank things.
+Returns this level's outcome in r0.
+
+This routine is responsible for marshaling:
+\begin{itemize}
+\item physics updates
+\item player input
+\item actor updates
+\item game logic updates
+\item music playback
+\item data decompression
+\item checking triggers
+\end{itemize}
+
+<<ARM Routines in ROM>>= 
+game_loop:
+	stmfd sp!, {lr}
+
+	@ 60Hz sync
+0:	ldr r0, =REG_VCOUNT
+	ldrh r1, [r0]
+	cmp r1, #10
+	bgt 0b
+
+	ldr r0, =hero_handle
+	ldrb r0, [r0]
+	bl actor_camerafollow
+
+	bl input_update
+	cmp r0, #0
+	bne 9f
+
+	<<Update stability counter>>
+
+	bl actor_update
+
+	bl ephemeral_update
+	bl collision_update
+
+	bl osd_meter_update
+
+	<<Check exit conditions>>
+
+	bal 0b
+
+9:	ldmfd sp!, {lr}
+	bx lr
+
+@ Stability is counted in terms of frames.  ([[balance_instability]] is
+stored as half its real value so it would always fit in a byte)
+
+<<Update stability counter>>= 
+	ldr r0, =balance_instability
+	ldrb r1, [r0]
+	mov r1, r1, lsl #1
+	ldr r0, =stability_counter
+	ldrh r2, [r0]
+	add r2, r2, #1
+	cmp r2, r1
+	movge r2, #0
+	strh r2, [r0]
+
+@ The currently supported set of exit conditions are the hero dying, or
+the hero hitting a trigger.
+
+<<Check exit conditions>>= 
+	<<Check the hero's pulse>>
+
+	bl level_checktriggers
+	cmp r0, #0
+	bne 9f
+
+@ The most important exit condition we have to track is whether the hero
+is alive.  If they've died, we have to gradually fade away, and return
+[[OUTCOME_DEAD]].  (At the moment, we immediately return... the fade
+will get implemented later.)
+
+<<Check the hero's pulse>>= 
+	ldr r0, =hero_handle
+	ldrb r0, [r0]
+	ldr r1, =actor_rt
+	add r1, r1, r0, lsl #5
+	ldrb r0, [r1, #ACTRT_FLAGS]
+	tst r0, #ACTRT_FLAG_ALIVE
+	moveq r0, #OUTCOME_DEAD
+	beq 9f
+
+@ {\tt input\_update} --- Handles pause (and any other player
+non-specific input functions).
+
+Currently only has to deal with the pause screen, which is managed by
+the osd module.  Be careful!  Note that for debug reasons, we let
+[[osd_handle_pause]] return an outcome (or 0) in {\bf r0}.  Keep that in
+mind when seamonking with this routine!
+
+<<ARM Routines in ROM>>= 
+input_update:
+	stmfd sp!, {lr}
+	bl osd_handle_pause
+	ldmfd sp!, {lr}
+	bx lr
+
+@
+{\tt game\_vbl}
+
+Graphics-bound game operations which must occur during the vertical
+blank.  Called each VBL by the interrupt handler.
+
+This routine is responsible for marshaling:
+\begin{itemize}
+\item scrolling
+\item world switching
+\item sprite updates
+\item effects
+\end{itemize}
+
+<<ARM Routines in IWRAM>>= 
+game_vbl:
+	stmfd sp!, {lr}
+	ldr r0, =REG_DISPCNT	    @ \
+	ldrh r1, [r0]		    @  | blank the display (rumored to
+	orr r1, r1, #1<<7	    @  | improve DMA to VRAM speed)
+	strh r1, [r0]		    @ /
+
+	bl camera_update
+	bl sprite_vbl
+
+	ldr r0, =REG_DISPCNT	    @ \
+	ldrh r1, [r0]		    @  | unblank the display
+	bic r1, r1, #1<<7	    @  |
+	strh r1, [r0]		    @ /
+
+        ldr r0, =music_update
+        mov lr, pc
+        mov pc, r0
+
+	ldmfd sp!, {pc}
+@
+
+% EOF game.nws

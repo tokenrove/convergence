@@ -1,0 +1,48 @@
+/* GNU LD ARM-AGB-ELF linker script
+ * for the Convergence project
+ * Copyright Pureplay Games / 2002
+ *
+ * Some portions of this code are based on Jeff Frohwein's public domain
+ * link script for the GBA.
+ *
+ * $Id: lnkscript,v 1.6 2002/12/09 13:09:29 tek Exp $
+ */
+
+OUTPUT_FORMAT("elf32-littlearm", "elf32-bigarm", "elf32-littlearm")
+OUTPUT_ARCH("arm")
+ENTRY(_start)
+
+MEMORY
+{
+    rom (rx)   : o = 0x8000000, l = 4M
+    iwram (wx) : o = 0x3000000, l = 32K
+    ewram (wx) : o = 0x2000000, l = 256K
+}
+
+
+SECTIONS
+{
+    .text : {
+	*(.text .rodata)
+	. = ALIGN(4);
+    } >rom
+
+    .ewram : {
+	*(.ewram)
+	. = ALIGN(4);
+    } >ewram
+
+    .iwram : {
+	*(.iwram)
+	. = ALIGN(4);
+    } >iwram
+    .iwram_code : {
+	__iwram_code_start = .;
+	*(.iwram_code)
+	. = ALIGN(4);
+    } >iwram AT>rom
+    __iwram_code_end = . + SIZEOF(.iwram_code);
+    __iwram_code_lma = LOADADDR(.iwram_code);
+}
+
+/* EOF lnkscript */

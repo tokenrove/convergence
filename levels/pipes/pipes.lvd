@@ -1,0 +1,57 @@
+
+#
+# level description file -- pipes
+# Convergence
+# $Id: pipes.lvd,v 1.3 2002/12/09 17:41:21 retsyn Exp $
+# 
+
+name pipes
+mode 0 
+tilesets 2
+alpha_palette levels/pipes/alpha_fg.pal
+beta_palette levels/pipes/beta_fg.pal
+line_bank levels/pipes/pipes.lnd
+alpha_segtree levels/pipes/alpha_sp.tree
+beta_segtree levels/pipes/beta_sp.tree
+
+###
+# Tilesets
+#
+
+tileset alpha_pg { bank 1 file levels/pipes/alpha_pg.tiles }
+tileset alpha_fg { bank 2 file levels/pipes/alpha_fg.tiles }
+tileset beta_pg { bank 1 file levels/pipes/beta_pg.tiles }
+tileset beta_fg { bank 2 file levels/pipes/beta_fg.tiles }
+
+
+###
+# Layer
+#
+
+layer alpha_pg { width 32 height 32   tile_bank 1  priority 0 
+    map_bank 0  scroll_speed 200  source levels/pipes/alpha_pg.map }
+layer alpha_fg { width 300 height 215 tile_bank 2  priority 2
+    map_bank 1  scroll_speed 128  source levels/pipes/alpha_fg.map }
+no_layer
+no_layer
+
+layer beta_pg { width 32 height 32   tile_bank 1  priority 0 
+    map_bank 2  scroll_speed 200  source levels/pipes/beta_pg.map }
+layer beta_fg { width 300 height 215 tile_bank 2  priority 2
+    map_bank 3  scroll_speed 128  source levels/pipes/beta_fg.map }
+no_layer
+no_layer
+
+
+###
+# Actor
+#
+
+
+actor { type ARCH_ED_BEAST  alpha beta  easy normal hard  x 1488 y 392  blank_state 0 }
+
+actor { type ARCH_ED_BEAST  alpha beta  normal hard  x 768 y 424  blank_state 0 }
+
+actor { type ARCH_ED_BEAST  alpha beta  hard  x 984 y 1529  blank_state 0 }
+
+# EOF pipes.lvd

@@ -1,0 +1,98 @@
+
+#
+# level description file -- vehicle yard
+# Convergence
+# $Id: vehicle.lvd,v 1.8 2002/12/08 22:13:03 retsyn Exp $
+#
+
+name vehicle
+mode 0
+tilesets 3
+alpha_palette levels/vehicle/alpha_fg.pal
+beta_palette levels/vehicle/beta_fg.pal
+line_bank levels/vehicle/vehicle.lnd
+alpha_segtree levels/vehicle/alpha_sp.tree
+beta_segtree levels/vehicle/beta_sp.tree
+
+###
+# Tilesets
+#
+
+ext_tileset courtyard_alpha_cl_tiles
+ext_tileset courtyard_alpha_bg_tiles
+tileset alpha_lev { bank 3 file levels/vehicle/alpha_lev.tiles }
+ext_tileset courtyard_beta_cl_tiles
+ext_tileset courtyard_beta_bg_tiles
+tileset beta_lev { bank 3 file levels/vehicle/beta_lev.tiles }
+
+
+###
+# Layers
+#
+
+layer alpha_fg { width 512  height 40  tile_bank 3  priority 0
+    map_bank 0  scroll_speed 128  source levels/vehicle/alpha_fg.map }
+layer alpha_mg { width 512  height 40  tile_bank 3  priority 2
+    map_bank 3  scroll_speed 128  source levels/vehicle/alpha_mg.map }
+ext_layer courtyard_alpha_bg_mrle
+ext_layer courtyard_alpha_cl_mrle
+
+layer beta_fg { width 512  height 40  tile_bank 3  priority 0
+    map_bank 6  scroll_speed 128  source levels/vehicle/beta_fg.map }
+layer beta_mg { width 512  height 40  tile_bank 3  priority 2
+    map_bank 7  scroll_speed 128  source levels/vehicle/beta_mg.map }
+ext_layer courtyard_beta_bg_mrle
+ext_layer courtyard_beta_cl_mrle
+
+
+
+###
+# Actors
+#
+
+actor_cluster { 
+    type ARCH_GREEN_SNIPER  alpha  hard  blank_state 0 
+} [ x 536 y 192 normal ; x 1008 y 200 easy normal ; x 1248 y 152 ; x 1464 y 112 normal ;
+    x 2336 y 104 ; x 3016 y 192 easy normal ]
+
+actor_cluster {
+    type ARCH_GREEN_TROOPER  alpha  hard  blank_state 0
+} [ x 432 y 238 easy normal ; x 448 y 238 easy normal ; x 688 y 206 easy normal ; 
+    x 808 y 238 normal ; x 1336 y 142 easy normal ; x 1366 y 142 easy normal ;
+    x 1528 y 104 easy normal ; x 1608 y 104 easy normal ; x 1688 y 104 normal ; 
+    x 1768 y 104 normal ; x 2144 y 240 easy normal ; x 2064 y 240 easy normal ]
+   
+actor_cluster {
+    type ARCH_GREEN_SENTRY  alpha  hard  blank_state 0
+} [ x 1184 y 184 normal ; x 1360 y 144 ; x 2096 y 104 normal ]
+
+actor_cluster {
+    type ARCH_BLUE_CAPTAIN  alpha  hard  blank_state 0
+}  [ x 240 y 240 ; x 792 y 240 ; x 1208 y 176 ; x 2152 y 240 ]
+
+actor { type ARCH_ED_BEAST  alpha beta  easy normal hard  blank_state 0
+    x 1480 y 48 }
+
+actor_cluster { type ARCH_BLUE_STEVE  alpha  blank_state 5
+} [ x 2632 y 112  normal hard ; x 2732 y 100  hard ]
+
+actor_cluster { 
+    type ARCH_JOSH  beta  easy normal hard  blank_state 0
+} [ x 216 y 216 ; x 2904 y 208 ] 
+
+actor_cluster {
+    beta  easy normal hard  blank_state 0  y 240
+} [ type ARCH_JOEY  x 376 ; type ARCH_ROB  x 400 ]
+
+actor_cluster {
+    beta  easy normal hard  blank_state 0  y 144
+} [ type ARCH_JON  x 1264 ; type ARCH_ROB  x 1360 ; type ARCH_JOEY  x 1330 ]
+
+actor_cluster {
+    type ARCH_GREEN_RIPPER  beta  blank_state 0
+} [ x 584 y 208  easy normal ; x 1016 y 224  normal hard ; x 1116 y 224  hard ; 
+    x 2248 y 104  easy normal hard ; x 1768 y 216  easy normal hard ; x 2208 y 232  hard ]
+
+
+
+# EOF vehicle.lvd

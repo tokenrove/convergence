@@ -1,0 +1,602 @@
+--------
+EYE-CLIPS
+----
+The AI info document.
+"Time to put on EYE CLIPS..."
+
+
+HUMANS
+------
+"And my human attorney..."
+
+
+TROOPERS
+
+All troopers have the human morale system.  They all can duck, jump,
+climb ladders, and most can throw grenades.  All troopers will be
+aware not to shoot their comrades.  If a trooper is engaging a foe and
+knows a comrade is behind him, he'll duck, allowing his comrade to
+shoot over him.  If there is a captain nearby, troopers will follow
+him and get morale boosts.  If he dies, their morale suffers.
+Troopers won't attack Billy, unless Billy majorly goes mad and kills
+lots of his friends.  But in Billy quest there won't be many
+opportunities to kill other troopers.  Troopers won't attack Minos,
+Juno, or Daedelus immediately.  If Any of these representatives choose
+to slay troopers on their quest, then troopers will panic and
+run. Here are notes on the colour variants.
+
+GREEN - Dip troopers.  Shoot at ED beasts briefly then run.  Greatest
+extreme variation between brave and scared.  Never uses grenades.
+
+BLUE - Less afraid.  Now knows to use grenades in this way: tosses
+them off ledges to foes below.
+
+RED - When behind two comrades (who are firing in formation already)
+will jump and toss grenades.  Organizes ambush points with comrades in
+wide open areas where they can give foes a pelting as they approach.
+
+BLACK - Waits for Sam at the tops of ladders.  Duck and jump to dodge
+waves or attacks from player characters.  When black troopers see that
+the foe is temporarily incapacitated, (like just got hit) they chuck a
+grenade.
+
+
+SNIPERS
+
+Snipers all know that their only hope is to attack from afar, so once
+they have gotten too close, they flee.  They can't jump or climb
+ladders.  All Snipers can aim at their target.  After changing the aim
+orientation of the gun, they cannot fire for certain amounts of time,
+depending on their leetness.
+
+GREEN SNIPERS - They aim at the target and fire as soon as they are
+ready.  They try to fire twice or more.
+
+BLUE SNIPERS - They aim at the target and fire as soon as they can.
+They know better than to fire more than once.  After firing once, they
+run as far as they can and then get ready for the next shot.
+
+RED SNIPERS - They aim at where the target is going to be based on
+it's movement and wait for it to get into that line.  When it is
+there, they fire.  After firing they run.
+
+ELITE SNIPERS - Just like RED snipers, but they have burst fire rifles
+that fire 3 quick shots.
+
+
+ROBOTS
+------
+"Robin, no laser sights at the dinner table."
+"-phvvvvvvt!"
+
+
+STEVEDROIDS
+
+These are heavy hovering metal fat-guy torsos that can build up lots
+of speed.  Stevedroids pitch forward and backward as they move, like
+rot-scale helicopters.  These try to line up with threats
+horizontally, and shoot their little plasma bursts sparingly at the
+enemy (These use the ion ephemeral).  They like to back off slowly and
+fire if the threat gets to close.  While they are capable of
+frightening top speeds, they accelerate very slowly.  So if you keep
+on top of things it's easy to catch up to a Steve.
+
+
+TINYBOTS (Ngaire's Glittering Kids)
+
+Tinybot is a secret to EVERYBODY!  These are secret floor patrolers
+who like to stop briefly in front of the hero and play their hooting
+sample.
+
+
+INTERCEPTORS
+
+Fast flying robots that really wanna collide with heroes.  They emit a
+constant threatening buzz that changes pitch dependent their velocity.
+They detonate if they collide with actors or play-field too hard.
+Their explosions are huge and damaging.  It should be fairly common to
+see a player defeat one by jumping over it and letting it swoop into a
+wall and explode.
+
+
+SANIBOTS - Sanitation maintenance bots
+
+These are not interesting in attacking or fleeing.  They are there
+merely for atmosphere.  They will dip into various vats and slowly
+float around, looking busy.
+
+
+TURRETS
+
+Are these robots?  Sure.  When the target is close and lined up, the
+turret will make a scary beep wait for a period of time (dependant on
+color) and fire a whole clip.  It's clip-size is also dependant on
+what type it is.
+
+GREEN - A great delay after beeping, and a 5 bullet clip.
+
+BLUE - A Short delay after beeping, and a 15 bullet clip.
+
+RED - Hardly any delay, 30 bullet clip.
+
+ELITE - Hardly any delay, and no clip limit; stops firing as soon as
+there is no target lined up, and fires again as soon as something is.
+
+
+BIO ORGANISMS
+-------------
+"Why did EA want that protein solution?  Chans.  Lots of them."
+
+
+CRAWLER
+
+Crawler will have both advancing and retreating (walking backwards
+animation).  Crawler will face whatever it wants to kill, and strike
+with claws when in range.  Crawler will quickly and insectishly walk
+backwards every time it sees someone attack.  So Sam will have to get
+pretty close to succeed in hitting it, as it will skitter back with
+every wave.
+In the case of being beaten from afar by Quinn, Billy, or Minos, after
+taking a few painful hits, from far away, it will turn around and run
+as far away as it can.
+
+
+RONALD-WORM
+
+Ronald worm patrols surfaces, rotating his sprite appropriately as he
+crawls on different angled surfaces.
+
+
+RIPPER
+
+Rippers are fast moving common creatures.  Rippers move strictly by
+jumping.  To move forward they do repeated low hops, and when they
+want to get up on something they jump very high, capable of clearing a
+9 tile obstacle.
+They like to rip up anything that's not too much bigger than them, so
+that includes all humans.
+Once they have decided what their prey is, they will be still and wait
+for it to get near.  After the prey is a little less than a screen
+length away, they jump at it, going over any obstacle to get to their
+prey, and then they use their close range attack repeatedly unless the
+prey moves, in which case they jump to follow it.
+
+
+GERTRUDE
+
+This crab thing moves slowly along surfaces.  It will speed up when it
+sees a human on the floor with it.  It will approach the human and ram
+it's ankles.  It's dangerous to the touch.
+
+
+GLENN
+
+Glenn is slow.  He can only walk and stumble towards what he badly
+wants to punch.  When he gets close enough to punch he will,
+repeatedly.
+
+
+LILLYPAIN
+
+LillyPain flies around slowly in round, curvy paths.  It will decide
+to attack anything that moves too fast.  Then it will attempt to get
+lined up to it and puke one of it's fireballs at it. (ephem/shell)
+After taking a shot, it will take some curved swoops around until it
+takes the next.
+
+
+
+SAM'S BOSSES
+------------
+"If these guys are dead, and the music is still playing..."
+
+
+MINOS, FIRST ENCOUNTER
+
+In this battle Minos can't look as if he's really trying.  The
+play-field in this scene is an unscrolling screen, completely open.  
+
+If Sam is far away (half the screen or more) Minos will stand on the
+ground and fire blades at him.  In this volley, he'll add a charged
+one after about three shots.  If Sam is in the air, Minos will try to
+line up the shots with Sam by jumping and firing a normal blast at
+him.
+
+Minos will jump in to take point-blank shots at Sam after missing from
+far away a couple times.  Minos will run in at Sam, and try to phase
+back and forth to get behind Sam and pound on his back.  After getting
+behind Sam, he'll attack as much as he can before the player reacts
+(by running away or attacking back) then he'll get far back again to
+start shooting from their.  He'll either jump over Sam or phase past
+him to get to an open area to go into that pattern again.
+
+If the player breaks the distance instead of Minos, during the
+distance attacks, Minos will choose to try and re-establish the
+shooting from a distance pattern if Sam is not staying on the ground.
+If Sam is staying mostly on the ground during his approach, Minos will
+want to charge once Sam gets more than halfway across.
+
+After 'defeating him' he should jump really high and phase out, and
+the music should cease, allowing the player to walk away in silence.
+
+
+THE R.I.V.A. MACHINE
+
+In this battle the area scrolls within horizontal limits, and scrolls
+up vertically uninhibited (there is only a small vertical space in the
+level in this case).
+
+The limits are set up just beyond each pile of drums.  
+
+RIVA spins and moves quickly across the ground and can stop on a dime.
+RIVA likes to dash forward at Sam and just before colliding with him,
+jump backwards while firing.  RIVA's projectiles are the 'ion'
+ephemeral.
+
+RIVA's shots fire from her guns with varied trajectories, that are not
+random, and are not aimed at Sam, but rather a slightly fanning volley
+that is always the same.
+
+If Sam is close enough to RIVA and out of the way of the path of the
+laser shots, she will charge at Sam, seeking to thrash him with the
+whirling legs.  It will be impossible to jump over this attack, so the
+player must be prepare to phase.
+
+In all the players phasing, RIVA will phase very soon after, in the
+middle of whatever she is doing.
+
+Defeat RIVA, and watch her explode violently!
+
+
+DAEDELUS
+
+Like the first Minos encounter, Daedelus is pre-spawned and waiting
+for Sam at the end of Sewers part III.  
+
+Daedelus' approach to combating Sam is of choosing which of his three
+attacks he will try to arrange to do next.
+
+If he wants to do a normal standing punch, he will run at Sam across
+the ground, phasing out and then in for actual contact (for tricky
+coolness) and deliver the blow.  If Sam jumps this, Daedelus will just
+turn around and move to the spot where he expects Sam to land and wait
+ducking there to hit Sam with his uppercut.
+
+If he wants to uppercut Sam, he will run and duck (His uppercut has to
+be executed from ducking) and slide a little in and deck Sam in the
+chops.  He will start this approach with a jump and do the duck slide
+slightly after landing.
+
+If Daedelus wants to do his jumping strike, he will run, jump, phase
+out, then in again when he's about ready to connect with Sam.
+
+All of Daedelus' choices of phasing will be canceled if Sam moved
+into the phase wherein it would be easier to just get him there.  The
+only way Sam can dodge Daedelus' attacks by phasing is by doing so at
+the very last minute, because Daedelus has the reaction time of a
+pretty quick human when it comes to being in the right phase at the
+right time.
+
+Daedelus chooses to dash if he's about to collide with Sam on the
+ground for other reasons, as in if Sam gets in the way of his dashing
+in to punch.
+
+The case for Sam interrupting his plans of doing his jump smash, like
+the dashing thing, he will just clobber Sam in the face in mid air
+with the air strike attack.
+
+
+CRYOBOT
+
+The entire area of the boss room is explore-able in this battle.  
+
+From the Cryobot's upper appendages fire fast straight lasers (using
+the ray ephemeral).  The arms move to line these up with Sam
+vertically and fire the laser every two seconds.
+
+The Cryobot's lower appendages project slow moving dissipating clouds
+of iciness that really hurt (These are using the icemist ephemeral).
+They do this anytime Sam is in range.  But after doing it, they cannot
+do it again until the projected cloud fades out.  The clouds take
+about 2 and a half seconds to fade out, and fly about 48 pixels before
+completely fading out.
+
+The four limbs and the body of the Cryobot are individually damage-able
+by Sam's waves.  The body is initially not easily hit because the arms
+are there.  Sam must individually destroy the limbs to get an easy
+shot at the body.
+
+The Cryobot's approach is to hover toward Sam slowly while each of
+it's arms are doing their thing.  Sam had better get under it and to
+the other side when the Cryobot has squeezed him into a trap, which is
+constantly what it's doing.
+
+The Cryobot changes it's approach when only certain limbs are left
+behind.  When there 1 or 2 laser limbs remaining, it will arrange the
+guns in patterns that are horizontally parallel and fire two shots at
+once at Sam at a rate twice as fast as before.  When there are 1 or 2
+ice jets left, the arms wave in circles (not maniacally, but
+mechanically) all around the body leaving deadly mist trails
+encircling the body.  There should be no way for Sam to jump in past
+the mist circle created if there is 2 arms.  Sam will only be able to
+hit the arms and destroy them.  If there is only 1 ice spewing arm
+left, Sam might be able to get one hit in with each revolution.
+
+I'd like it so the player can do some advance damage on the body
+before the arms are destroyed, but I want to have it so that
+destroying the body before the arms is theoretically possible, but
+practically not doable for those who aren't Greg.
+
+Once all limbs are destroyed, the remaining hulk flies around, trying
+to crush Sam against walls, until blown up.
+
+
+
+MAUDE
+
+Maude is found half-way through the zoo.  When Sam enters Maude's
+little room, the scrolling is locked into that room.
+
+If Maude is far away from sam, then Maude's intent is to scream, then
+charge at Sam, once close enough whip tails at him.  The tails will
+whip towards where-ever Sam, being flat infront of Maude or on one of
+the little platforms.
+
+If Sam is within tail-whipping distance from Sam, during any pattern,
+will just try to whip him.
+
+If Sam gets behind Maude, Maude will yell in angry confusion before
+turning around.
+
+Maude will phase slighty after Sam in all cases.
+
+
+HOWARD
+
+Touching Howard hurts the player.  Howard drips deadly fluid
+constantly, which also hurts.  Howard drifts with spinning flame rings
+around him (using blaze ephemeral).  He slowly seeks grab the hero and
+drip spitty black ichor on him.  If player phases, Howard phases too
+and tries to grab him again immediately.
+
+Howard occasionally slams onto the side of the play-field, and sticks
+onto the side-most wall, from where he spews fire in a downward arc at
+player (this fire is made by a string of the torch ephemeral).  It's
+safe from this fire directly underneath him, and if you phase, briefly
+the screen is clear of fire, until Howard phases with you, as he
+flames.
+
+Howard also rises to the top of the screen, fans out his tentacles and
+drops ichor over a wider radius (in which there is room enough to
+actively dodge).
+
+These elements occur in a forewarned fashion, each occuring randomly.
+The spewing of the the flames is forewarned by Howard attaching to the
+wall.  The grabbing attack is forewarned by his slow drifting toward
+the player.  The wide spread dripping attack is forewarned by a brief
+pause after giving up his grabbing attempts, then he rises.
+
+When defeated by Sam, phasic explosions consume him and he's gone.
+
+
+JUNO
+
+When Sam enters the lobby of the office stage, Juno falls down from
+the ceiling and lands behind him.  Boss time!
+
+The horizontal scrolling limits are from the pillar on the left to the
+stairs on the right.  There is no vertical scrolling limit.
+
+Juno likes to stay in the air and use her double jumps a lot.  Her only
+concern is trying to arrange to land right next to Sam and begin her
+vicious combo.  The blows from this combo do not allow any
+invulnerability time and does not knock Sam back, until the last kick
+(She does the punching combo followed by a kicking combo.) She will
+correct the distance if she lands a little to far for the combo by
+taking a few steps towards Sam.
+
+If Sam jumps at Juno while she's in the air herself, she will choose
+her response based on how high Sam is when he gets in range to do his
+wave.  If he's higher than her, she will double jump straight up and
+kick him in the face.  Perhaps jump backward and kick him in the face.
+If Sam is in the air and falling toward her on the ground, she will do
+her ducking kick in hopes to duck Sam's attack and kick him in the
+nuts.
+
+She flees upward after beaten.
+
+
+STOMPER BOSS
+
+The stomper boss falls down infront of Sam in the auditorium in the
+office stage.  The horizontal limits are from the exit to the left to
+the stairs to the right.
+
+This thing walks slowly around aiming it's rot-scale guns down at the
+hero, keep them trained on him during all movement.  Periodically they
+rapidly fire deadly shells in a volley like a machine gun (using the
+shell ephemeral, spawning the spak ephemeral when they collide with
+the ground).  While they are firing, the guns cannot turn.
+
+Hitting any part of it (except the barrels) with a wave will damage
+the whole thing.  Touching it's stomping feet will hurt Sam.
+
+This machine moves in to the position wherein it's guns can train on
+Sam at about 120 degrees.  If Sam gets a little bit closer, it will
+move back.  If Sam gets really close, it will quickly stomp forward in
+an attempt to crush him.
+
+Occasionally it will take a step back, make a loud servo noise, and
+train it's guns right infront of it's feet and start firing as it pans
+it's guns slowly upward sweeping the whole floor.  The way to dodge
+this is by running back from the stream (it doesn't advance too
+quickly) and then jumping into it while phasing.  While the giant
+droid will just phase with Sam, by then Sam will be safe under the
+volley.
+
+After damaged enough, it will just explode.  It's components can
+collapse and the robot-bit ephemerals will fly everywhere.  Maybe big
+flashes and white light filters during the explosion.
+
+
+JUNO & DAEDELUS
+
+Both Juno and Daedelus will execute their normal routines as before
+simultaneously.  They will take turns moving in to strike, and retreat
+and wait as the other makes an attack.
+
+If Sam is threatening the waiting party while the other party is
+attacking him, they will just do an ordinary attack in the nature of
+jumping to meet Sam and hit him, or just running a little closer to
+hit him.
+
+What determines who is going to go on the offense is whoever is closer
+to Sam when it comes time to choose.  The time to choose it determined
+by the success of the last attack; if the attack was dodged
+completely, the same representative will try again.  It the attack was
+countered with a strike back from Sam, the other representative will
+step in.
+
+When one representative is defeated by Sam, they will reel back and be
+engulfed by a strange vortex and never be seen again.
+
+When one representative remains, they will revert to the AI they were
+using in the first encounter that Sam had with them.
+
+
+QUANTUM SHIFTER BOSS
+
+This Boss is dual phase.  The Shifter boss floats around while it's
+drones orbit it.  There is one drone in each phase.  The Shifter has a
+shield that protects it in both phases (shield ephemeral), but when
+the shield is hit in one phase, it's not there in the other phase
+briefly, allowing damage to be done to the Shifter.
+
+The alpha world the drone shoots fast moving lasers that fly
+horizontally (using ray ephemeral) in Sam's direction from where ever
+the drone is in orbit.  In the beta world the drone shoots a stream of
+slow moving rings of energy (ring ephemeral) that drift towards Sam.
+
+Periodically the drones line up on one side of the Shifter (the side
+that Sam's on at the time).  Both drones shoot huge beams, one phase
+firing high, and the other phase firing low (chosen randomly).  The
+player is warned as he will see a particular drone move to the
+formation.
+
+Blow it up.
+
+
+MINOS FINAL ENCOUNTER
+
+After walking into the apparatus lower room, Minos will flip down from
+the ceiling.
+
+Whenever Minos is parallel to Sam horizontally, he will fire at him
+(unless there is an obstruction).  If Sam is far away, he will charge
+fire at him.  When Sam gets close to Minos, Minos will climb the
+nearest wall.
+
+If Sam is pursuing him by wall-jumping, Minos will climb down again to
+get parallel to Sam and fire a shot at him.  This will knock Sam down,
+and Minos will follow him by letting go and meeting him on the ground,
+for another attempt at hitting him in the face.  
+
+Presumably, a good technique for the player would be to tap lightly
+when wall jumping to bring Sam face to face with Minos and then beat
+on him until you fall downward, catching the wall beneath him (as to
+not suffer fall damage.)
+
+
+PSYCHO MINOS CHASE
+
+Minos now moves by flying through the air in straight lines of any
+angle until he hits a wall.  Then he grabs on and can climb if he
+wants to.  He can now fire his evil projectiles in rapid bursts of
+three, and he can aim them slightly up and down.  He is now lethal to
+touch at all times.  All his movement is twice as fast now.
+
+A smart player is struggling to get Sam upward, since Minos in this
+form is indestructible.  So Minos' goal is to get parallel to Sam on a
+wall or stand on a platform and take a clear shot at Sam.  Minos will
+use his flying attack to collide with Sam after he's fired 1 or 2
+vollies.
+
+Sam can strike Minos and make him fall down from his flight or
+climbing.  But he won't take any damage.
+
+Once Sam reaches the top, EMPEROR will appear and fry Minos.  Sam is
+free to go now.
+
+
+EMPEROR
+
+At the top of the apparatus, EMPEROR appears from the sky.  This is a
+giant ED beast that floats about threateningly.  
+
+	
+	1st FORM
+	
+	EMPEROR follows a pattern of moving in a wide figure
+	8 discharging slow but deadly projectiles.
+
+	Sam can hit any part of it to do damage.  If Sam hits it 5
+	times it will teleport to a place high up to get away, then
+	start it's pattern again. 
+
+	Occasionally it decides to stop, teleport to be horizontally
+	parallel to Sam, charge at him then teleport out.  Since the
+	creature is dual phase, Sam can't phase past the charge.  He
+	has to hit it 5 times quickly to compel it to cancel it's
+	attack and teleport away.
+
+	After it's taken enough damage, the 2nd form kicks in.
+
+	
+	2nd FORM
+
+	It becomes invisible.  Only for a second after phasing can you
+	see the enemy.  It appears briefly when Sam strikes it.
+
+	It moves in a figure 8 this time low enough for Sam to jump
+	over as it passes.  After each loop of the figure 8, it stops
+	at one of the far sides, and shoots a spread of projectiles at
+	Sam.  It no longer teleports or dashes in this form.
+
+
+	3rd FORM
+
+	After a huge bright flash, the background is replaced with a
+	madly scrolling fury of phasic crud.
+
+ 	There is a constant wind effect that blows Sam to one
+ 	direction and upwards (the upwards lift won't lift Sam off of
+ 	what he's standing on but it will make his jumps disturbingly
+ 	high).  Periodically the EMPEROR makes a huge flash, and the
+ 	direction of the scrolling mayhem in the background changes,
+ 	and the horizontal push of the wind changes direction.
+
+	The ground is gone and replaced with an indefinite supply of
+	rising pieces of rubble.  There are large and small pieces of
+	rubble.  The small pieces rise faster than the large pieces.
+	To keep from falling to his doom, Sam has to jump from piece
+	to piece.
+	
+	The form is basically the same as form I but now 5 hits will
+	not make it teleport away, and it's figure 8 is larger, as
+	well as the projectiles being more numerous.  But with the
+	change in surroundings, the dash is best avoided by jumping to
+	a lower or higher piece.  In this way as well, Sam has more
+	room to avoid the shots.
+
+	Occasionally the EMPEROR will stop and release a huge slow
+	moving blast that follows Sam.  After pursuing Sam for a
+	while, it will drift off away from the scene.
+
+	Sam has to damage EMPEROR a certain amount to forever destroy
+	it.  After beaten, a huge vortex will open up and suck Sam in.
+	Whether Sam gets the beta ending or the alpha ending depends
+	on which phase he's in when he falls through the vortex.
+	He'll end up in beta if he enters it in alpha, and vice versa.
+
+
+EOF eye-clips 	

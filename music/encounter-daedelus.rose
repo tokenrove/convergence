@@ -1,0 +1,466 @@
+#!Rosegarden
+#
+#  Musical Notation File
+#
+
+RV21
+
+
+Staves 3
+
+
+Name Staff 1
+Metronome
+	Crotchet 196
+Clef
+	Clef Name Treble
+End
+
+Name Staff 2
+Clef
+	Clef Name Alto  
+End
+
+Name Staff 3
+Clef
+	Clef Name Bass  
+Key
+	Key Name F  maj / D  min
+: Crotchet 0 1 -1 0 0 "d"
+: Minim 0 1 -1 0 0 "d"
+: Crotchet 0 1 -1 0 0 "d"
+: Crotchet 0 1 -3 2 0 "bb"
+: Minim 0 1 -3 2 0 "bb"
+: Crotchet 0 1 -3 2 0 "bb"
+: Crotchet 0 1 -4 0 0 "a"
+: Minim 0 1 -4 0 0 "a"
+: Crotchet 0 1 -4 0 0 "a"
+: Crotchet 0 1 -5 0 0 "g"
+: Crotchet 0 1 -5 0 0 "g"
+: Crotchet 0 1 -6 0 0 "f"
+: Crotchet 0 1 -6 0 0 "f"
+: Crotchet 0 1 -1 0 0 "d"
+: Minim 0 1 -1 0 0 "d"
+: Crotchet 0 1 -1 0 0 "d"
+: Crotchet 0 1 -3 2 0 "bb"
+: Minim 0 1 -3 2 0 "bb"
+: Crotchet 0 1 -3 2 0 "bb"
+: Crotchet 0 1 -4 0 0 "a"
+: Minim 0 1 -4 0 0 "a"
+: Crotchet 0 1 -4 0 0 "a"
+: Crotchet 0 1 -3 2 0 "bb"
+: Crotchet 0 1 -5 0 0 "g"
+: Crotchet 0 1 -4 0 0 "a"
+: Crotchet 0 1 -6 0 0 "f"
+Group
+	Beamed
+	: Quaver 0 1 -1 0 0 "d"
+	: Quaver 0 1 -1 0 0 "d"
+	: Quaver 0 1 -1 0 0 "d"
+	: Quaver 0 1 -1 0 0 "d"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -1 0 0 "d"
+	: Quaver 0 1 -1 0 0 "d"
+	: Quaver 0 1 -1 0 0 "d"
+	: Quaver 0 1 -1 0 0 "d"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -3 2 0 "bb"
+	: Quaver 0 1 -3 2 0 "bb"
+	: Quaver 0 1 -3 2 0 "bb"
+	: Quaver 0 1 -3 2 0 "bb"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -3 2 0 "bb"
+	: Quaver 0 1 -3 2 0 "bb"
+	: Quaver 0 1 -3 2 0 "bb"
+	: Quaver 0 1 -3 2 0 "bb"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -4 0 0 "a"
+	: Quaver 0 1 -4 0 0 "a"
+	: Quaver 0 1 -4 0 0 "a"
+	: Quaver 0 1 -4 0 0 "a"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -4 0 0 "a"
+	: Quaver 0 1 -4 0 0 "a"
+	: Quaver 0 1 -4 0 0 "a"
+	: Quaver 0 1 -4 0 0 "a"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -5 0 0 "g"
+	: Quaver 0 1 -5 0 0 "g"
+	End
+: Crotchet 0 1 2 0 0 "g"
+Group
+	Beamed
+	: Quaver 0 1 -6 0 0 "f"
+	: Quaver 0 1 -6 0 0 "f"
+	End
+: Crotchet 0 1 1 0 0 "f"
+Group
+	Beamed
+	: Quaver 0 1 -1 0 0 "d"
+	: Quaver 0 1 -1 0 0 "d"
+	: Quaver 0 1 -1 0 0 "d"
+	: Quaver 0 1 -1 0 0 "d"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -1 0 0 "d"
+	: Quaver 0 1 -1 0 0 "d"
+	: Quaver 0 1 -1 0 0 "d"
+	: Quaver 0 1 -1 0 0 "d"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -3 2 0 "bb"
+	: Quaver 0 1 -3 2 0 "bb"
+	: Quaver 0 1 -3 2 0 "bb"
+	: Quaver 0 1 -3 2 0 "bb"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -3 2 0 "bb"
+	: Quaver 0 1 -3 2 0 "bb"
+	: Quaver 0 1 -3 2 0 "bb"
+	: Quaver 0 1 -3 2 0 "bb"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -4 0 0 "a"
+	: Quaver 0 1 -4 0 0 "a"
+	: Quaver 0 1 -4 0 0 "a"
+	: Quaver 0 1 -4 0 0 "a"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -4 0 0 "a"
+	: Quaver 0 1 -4 0 0 "a"
+	: Quaver 0 1 -4 0 0 "a"
+	: Quaver 0 1 -4 0 0 "a"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -5 0 0 "g"
+	: Quaver 0 1 -5 0 0 "g"
+	: Quaver 0 1 -5 0 0 "g"
+	: Quaver 0 1 -3 2 0 "bb"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -6 0 0 "f"
+	: Quaver 0 1 -6 0 0 "f"
+	: Quaver 0 1 -6 0 0 "f"
+	: Quaver 0 1 -5 0 0 "g"
+	End
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -6 0 0 "f"
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -5 0 0 "g"
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -3 2 0 "bb"
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -5 0 0 "g"
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -6 0 0 "f"
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -5 0 0 "g"
+Group
+	Beamed
+	: Quaver 0 1 -7 0 0 "e"
+	: Quaver 0 1 -7 0 0 "e"
+	: Quaver 0 1 -7 0 0 "e"
+	: Quaver 0 1 -3 2 0 "bb"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -7 0 0 "e"
+	: Quaver 0 1 -7 0 0 "e"
+	: Quaver 0 1 -7 0 0 "e"
+	: Quaver 0 1 -5 0 0 "g"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -1 0 0 "d"
+	: Semiquaver 0 1 -1 0 0 "d"
+	: Semiquaver 0 1 -1 0 0 "d"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -1 0 0 "d"
+	: Semiquaver 0 1 -1 0 0 "d"
+	: Semiquaver 0 1 -1 0 0 "d"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -1 0 0 "d"
+	: Semiquaver 0 1 -1 0 0 "d"
+	: Semiquaver 0 1 -1 0 0 "d"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -1 0 0 "d"
+	: Semiquaver 0 1 -1 0 0 "d"
+	: Semiquaver 0 1 -1 0 0 "d"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -3 2 0 "bb"
+	: Semiquaver 0 1 -3 2 0 "bb"
+	: Semiquaver 0 1 -3 2 0 "bb"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -3 2 0 "bb"
+	: Semiquaver 0 1 -3 2 0 "bb"
+	: Semiquaver 0 1 -3 2 0 "bb"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -3 2 0 "bb"
+	: Semiquaver 0 1 -3 2 0 "bb"
+	: Semiquaver 0 1 -3 2 0 "bb"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -3 2 0 "bb"
+	: Semiquaver 0 1 -3 2 0 "bb"
+	: Semiquaver 0 1 -3 2 0 "bb"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -4 0 0 "a"
+	: Semiquaver 0 1 -4 0 0 "a"
+	: Semiquaver 0 1 -4 0 0 "a"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -4 0 0 "a"
+	: Semiquaver 0 1 -4 0 0 "a"
+	: Semiquaver 0 1 -4 0 0 "a"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -4 0 0 "a"
+	: Semiquaver 0 1 -4 0 0 "a"
+	: Semiquaver 0 1 -4 0 0 "a"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -4 0 0 "a"
+	: Semiquaver 0 1 -4 0 0 "a"
+	: Semiquaver 0 1 -4 0 0 "a"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -5 0 0 "g"
+	: Semiquaver 0 1 -5 0 0 "g"
+	: Semiquaver 0 1 -5 0 0 "g"
+	End
+Group
+	Tupled 16 3
+	: Quaver 0 1 2 0 0 "g"
+	: Quaver 0 1 2 0 0 "g"
+	: Quaver 0 1 2 0 0 "g"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -6 0 0 "f"
+	: Semiquaver 0 1 -6 0 0 "f"
+	: Semiquaver 0 1 -6 0 0 "f"
+	End
+Group
+	Tupled 16 3
+	: Quaver 0 1 1 0 0 "f"
+	: Quaver 0 1 1 0 0 "f"
+	: Quaver 0 1 1 0 0 "f"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -1 0 0 "d"
+	: Semiquaver 0 1 -1 0 0 "d"
+	: Semiquaver 0 1 -1 0 0 "d"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -1 0 0 "d"
+	: Semiquaver 0 1 -1 0 0 "d"
+	: Semiquaver 0 1 -1 0 0 "d"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -1 0 0 "d"
+	: Semiquaver 0 1 -1 0 0 "d"
+	: Semiquaver 0 1 -1 0 0 "d"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -1 0 0 "d"
+	: Semiquaver 0 1 -1 0 0 "d"
+	: Semiquaver 0 1 -1 0 0 "d"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -3 2 0 "bb"
+	: Semiquaver 0 1 -3 2 0 "bb"
+	: Semiquaver 0 1 -3 2 0 "bb"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -3 2 0 "bb"
+	: Semiquaver 0 1 -3 2 0 "bb"
+	: Semiquaver 0 1 -3 2 0 "bb"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -3 2 0 "bb"
+	: Semiquaver 0 1 -3 2 0 "bb"
+	: Semiquaver 0 1 -3 2 0 "bb"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -3 2 0 "bb"
+	: Semiquaver 0 1 -3 2 0 "bb"
+	: Semiquaver 0 1 -3 2 0 "bb"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -4 0 0 "a"
+	: Semiquaver 0 1 -4 0 0 "a"
+	: Semiquaver 0 1 -4 0 0 "a"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -4 0 0 "a"
+	: Semiquaver 0 1 -4 0 0 "a"
+	: Semiquaver 0 1 -4 0 0 "a"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -4 0 0 "a"
+	: Semiquaver 0 1 -4 0 0 "a"
+	: Semiquaver 0 1 -4 0 0 "a"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -4 0 0 "a"
+	: Semiquaver 0 1 -4 0 0 "a"
+	: Semiquaver 0 1 -4 0 0 "a"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -5 0 0 "g"
+	: Semiquaver 0 1 -5 0 0 "g"
+	: Semiquaver 0 1 -5 0 0 "g"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -3 2 0 "bb"
+	: Semiquaver 0 1 -3 2 0 "bb"
+	: Semiquaver 0 1 -3 2 0 "bb"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -6 0 0 "f"
+	: Semiquaver 0 1 -6 0 0 "f"
+	: Semiquaver 0 1 -6 0 0 "f"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -5 0 0 "g"
+	: Semiquaver 0 1 -5 0 0 "g"
+	: Semiquaver 0 1 -5 0 0 "g"
+	End
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -6 0 0 "f"
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -5 0 0 "g"
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -3 2 0 "bb"
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -5 0 0 "g"
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -6 0 0 "f"
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -7 0 0 "e"
+: Quaver 0 1 -5 0 0 "g"
+Group
+	Beamed
+	: Quaver 0 1 -7 0 0 "e"
+	: Quaver 0 1 -7 0 0 "e"
+	: Quaver 0 1 -7 0 0 "e"
+	: Quaver 0 1 -3 2 0 "bb"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -7 0 0 "e"
+	: Quaver 0 1 -7 0 0 "e"
+	: Quaver 0 1 -7 0 0 "e"
+	: Quaver 0 1 -5 0 0 "g"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -3 2 0 "bb"
+	: Semiquaver 0 1 -3 2 0 "bb"
+	: Semiquaver 0 1 -3 2 0 "bb"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -5 0 0 "g"
+	: Semiquaver 0 1 -5 0 0 "g"
+	: Semiquaver 0 1 -5 0 0 "g"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -4 0 0 "a"
+	: Semiquaver 0 1 -4 0 0 "a"
+	: Semiquaver 0 1 -4 0 0 "a"
+	End
+Group
+	Beamed
+	: Quaver 0 1 -6 0 0 "f"
+	: Semiquaver 0 1 -6 0 0 "f"
+	: Semiquaver 0 1 -6 0 0 "f"
+	End
+End
+
+Bar 0 0 time 4 4
+Bar 1 0 time 4 4
+Bar 2 0 time 4 4
+Stave 0 tags 1 1 connected 0 program 0
+Stave 1 tags 1 1 connected 0 program 0
+Stave 2 tags 1 1 connected 0 program 33
+
+End

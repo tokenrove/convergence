@@ -1,0 +1,15 @@
+--------
+QUINN LAWS
+----
+
+	This file contains Quinns physical limits.
+
+    - Quinn can jump over a six-tile column, like Sam.
+    
+    - Quinn can jump a 13 tile wide gap fully running.
+
+    - Quinn cannot wall jump.
+
+    - Falling a distance less than 20 tiles doesn't hurt him.
+    
+    - Quinn can slide under a 2 tile high gap or greater.

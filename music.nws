@@ -1,0 +1,1450 @@
+%
+% GBA Music Routines for the PH-1 (Pure Harmony -1) format
+% Team Rhombus / Pureplay Games  2002
+%
+% Maintainer: Julian Squires <tek@wiw.org>
+%
+% XXX TODO
+%  - noise channel support
+%  - sample playback support
+%  - insertion
+%
+
+<<Files to include>>= 
+	.include "gba.inc"
+@
+
+Note: This is fairly stripped down from PH0 which includes sample
+support.
+
+Oh, and [[order_table]] {\em must} end with a loop, among other ridiculous
+restrictions.
+
+Song format:
+
+\begin{verbatim}
+short	    order_len	    length of the order table
+short       pad             unused
+n*byte      order_table	    idx into pattern table to play,
+			    or 255 followed by x, to loop back
+			    to order idx x
+<word align>
+?*word       pattern_table   pointers to patterns
+\end{verbatim}
+
+Pattern format:
+
+\begin{verbatim}
+short	    nchannels	    number of channels (min: 1, max: 6)
+short	    info	    info is (octave shl 8) | (tempo - 60)
+?*int       channel_table   pointers to channel data
+\end{verbatim}
+
+Channels 0, 1, and 2 format:
+
+\begin{verbatim}
+?*short where the top two bits determine the type:
+  00 -> 00rr nnnn  nndd dDDD
+	    r = reserved, n = note, d = duration, D = durmod
+  01 -> 01ss ssaa  aaaa aaaa
+	    s = special command, a = argument
+  1x -> 1ccc caaa  aaaa aaaa
+	    c = generic command, a = argument
+\end{verbatim}
+
+Channel 3 format:
+
+\begin{verbatim}
+?*short where the top two bits determine the type:
+  00 -> 00rr iiii  iidd dDDD
+	    r = reserved, i = instrument, d = duration, D = durmod
+  01 -> 01ss ssaa  aaaa aaaa
+	    s = special command, a = argument
+  1x -> 1ccc caaa  aaaa aaaa
+	    c = generic command, a = argument
+\end{verbatim}
+
+Channels 4 and 5 format:
+
+\begin{verbatim}
+?*short where the top two bits determine the type:
+  00 -> 00r0 nnnn  nndd dDDD
+	    r = reserved, n = note, d = duration, D = durmod
+  00 -> 00r1 iiii  iidd dDDD
+	    r = reserved, i = instrument, d = duration, D = durmod
+  01 -> 01ss ssaa  aaaa aaaa
+	    s = special command, a = argument
+  1x -> 1ccc caaa  aaaa aaaa
+	    c = generic command, a = argument
+\end{verbatim}
+
+Special commands:
+\begin{verbatim}
+   0000 -> set instrument
+   0001 -> set octave
+   0010 -> set staccato
+   0011 -> set panning
+   0100 -> set sweep (channel 0 only)
+   0101 -> set envelope
+   0110 -> set duty cycle
+\end{verbatim}
+
+Generic commands:
+\begin{verbatim}
+   1000 -> loop n+1 times from x halfints before this point
+	    1100 0nnn  xxxx xxxx
+   1001 -> trigger n
+	    1100 1000  0000 0nnn
+   1010 -> set tempo to (n+60)
+	    1101 0000  nnnn nnnn
+   0xFFFF -> pattern end
+\end{verbatim}
+
+
+
+Some constants.
+
+<<Constants>>= 
+.equ max_channels, 6
+.equ max_triggers, 8
+.equ tempo_offset, 60
+
+@ Duration modifier constants.
+
+<<Constants>>= 
+.equ duration_dot, 1
+.equ duration_tie, 2
+.equ duration_triplet, 4
+
+@ Our static variables for music playback.
+
+[[inst_sqr0_bank]] -- address of sqr0 instrument bank.
+
+[[inst_sqr1_bank]] -- address of sqr1 instrument bank.
+
+[[inst_noise_bank]] -- address of noise channel instrument bank.
+
+[[inst_sample_bank]] -- address of PCM sample bank.
+
+[[song_ptr]] -- the address of the song being played.
+
+<<EWRAM Variables>>= 
+inst_sqr0_bank: .skip 4
+inst_sqr1_bank: .skip 4
+inst_noise_bank: .skip 4
+inst_sample_bank: .skip 4
+song_ptr: .skip 4
+
+@ Channel info for channels 0, 1, 2, 4, and 5:
+
+\begin{verbatim}
+chan_info
+        xxxx xxxx  xxxx xxpp    iiii iiii  ssoo cccc
+        p = panning, i = instrument, s = staccato, o = octave offset, c = loop counter
+\end{verbatim}
+
+For channel 3:
+
+\begin{verbatim}
+chan_info
+        xxxx xxxx  xxxx xxpp    xxxx xxxx  ssoo cccc
+        x = unused, p = panning, s = staccato, o = octave offset, c = loop counter
+\end{verbatim}
+
+<<EWRAM Variables>>= 
+chan_info: .skip 4*max_channels
+
+@ [[chan_ptrs]] -- channel pointers (ints).
+
+[[chan_counters]] -- channel duration counters (shorts).
+
+[[triggers]] -- pointers to trigger routines. 0 = no trigger.
+
+[[order_idx]] -- the current index into the order table (byte).
+
+[[channels]] -- bitmap of enabled channels.
+
+[[wlen]] -- length of a whole note at current tempo (short).
+
+<<EWRAM Variables>>= 
+chan_ptrs: .skip 4*max_channels
+chan_counters: .skip 2*max_channels
+.align
+triggers: .skip 4*max_triggers
+order_idx: .skip 1
+channels: .skip 1
+wlen: .skip 2
+@ [[pause_channels]] -- channels to keep enabled during pause.
+
+[[pause_bit]] -- whether pause is turned on or not.
+
+[[sfx_bypass]] -- bitmap of sfx bypassed channels.
+
+[[sfx_counters]] -- counter for sfx bypass.
+
+<<EWRAM Variables>>= 
+pause_channels: .skip 1
+pause_bit: .skip 1
+sfx_bypass: .skip 1
+.align
+sfx_counters: .skip 2*max_channels
+.align
+
+@ [[music_init]]
+
+<<ARM Routines in ROM>>= 
+	.global music_init
+music_init:
+        stmfd sp!, {r4-r7,lr}
+
+        ldr r0, =pause_bit
+        mov r1, #0
+        strb r1, [r0]
+
+        @ Enable sound channel
+        mov r0, #reg_base
+        mov r1, #0x80           @ Enable all circuits
+        strh r1, [r0, #0x84]    @ REG_SOUNDCNT_X
+
+        mov r1, #0x02           @ Max sound ratio for synth channels
+        orr r1, r1, #0b011<<8   @ Direct sound channel A
+        orr r1, r1, #0b011<<12  @ Direct sound channel B
+        strh r1, [r0, #0x82]    @ REG_SOUNDCNT_H
+
+        mov r1, #0x77           @ Max volume left and right
+        orr r1, r1, #0xFF00     @ Pan all to both
+        strh r1, [r0, #0x80]    @ REG_SOUNDCNT_L
+
+        @ Enable wave channel XXX shouldn't play initial triangle
+        ldr r0, =REG_GBCWAVCNT
+        mov r1, #0x80
+        strh r1, [r0], #2
+        mov r1, #0x2000
+        orr r1, r1, #0xff
+        strh r1, [r0], #2
+        mov r1, #0x8000
+        strh r1, [r0], #2
+
+        @ Fill GBC waveram with triangle
+        ldr r2, =triangle_table
+        ldmia r2, {r4-r7}
+        ldr r0, =REG_WAVE_RAM
+        stmia r0!, {r4-r7}
+        ldr r0, =REG_GBCWAVCNT
+        mov r1, #0xC0
+        strh r1, [r0]
+        ldr r0, =REG_WAVE_RAM
+        stmia r0!, {r4-r7}
+
+        @ Set amp resolution
+        ldr r2, =REG_AMPRES
+        ldrh r1, [r2]
+        bic r1, r1, #0b11 << 14
+        orr r1, r1, #0b01 << 14
+        strh r1, [r2]
+
+        @ Initialize PCM buffer
+        ldr r2, =pcm0_active
+        mov r3, #0
+        strb r3, [r2]
+
+        ldr r0, =pcm_sample_0
+        mov r1, #0
+        str r1, [r0]
+        ldr r2, =update_pcm0_buffer
+        mov lr, pc
+        mov pc, r2
+
+        ldr r2, =pcm1_active
+        mov r3, #0
+        strb r3, [r2]
+
+        ldr r0, =pcm_sample_1
+        mov r1, #0
+        str r1, [r0]
+        ldr r2, =update_pcm1_buffer
+        mov lr, pc
+        mov pc, r2
+
+        ldr r0, =REG_TM1DAT
+        ldr r1, =(0xffff - PCM_BUFLEN + 1)
+        strh r1, [r0]
+
+        ldr r0, =REG_TM0DAT
+        ldr r1, =(0xffff - ((1<<24)/PCM_DENOM))
+        strh r1, [r0]
+
+        ldr r0, =REG_SOUNDCNT
+        ldrh r1, [r0, #2]
+        orr r1, r1, #0b10001<<11    @ reset both FIFOs
+        strh r1, [r0, #2]
+
+        ldr r2, =REG_TM0DAT
+        add r2, r2, #2
+        mov r1, #0x80
+        strh r1, [r2], #2
+
+        ldr r2, =REG_TM1DAT
+        mov r1, #0xC4
+        strh r1, [r2, #2]
+
+        mov r0, #INT_TIMER1
+        ldr r1, =swap_pcm_buffers
+        bl intr_enable
+
+        ldmfd sp!, {r4-r7,lr}
+	bx lr
+@
+
+<<ARM Routines in ROM>>=
+        .global music_shutdown
+music_shutdown:
+        stmfd sp!, {lr}
+
+        mov r0, #0
+        ldr r1, =REG_SOUNDCNT
+        str r0, [r1], #4
+        strh r0, [r1]
+
+        mov r0, #INT_TIMER1
+        bl intr_disable
+
+        ldmfd sp!, {lr}
+        bx lr
+
+@ [[music_set_instruments]](sqr0, sqr1, noise, pcm)
+
+<<ARM Routines in ROM>>= 
+	.global music_set_instruments
+music_set_instruments:
+	stmfd sp!, {r4,lr}
+	ldr r4, =inst_sqr0_bank
+	str r0, [r4]
+	ldr r4, =inst_sqr1_bank
+	str r1, [r4]
+	ldr r4, =inst_noise_bank
+	str r2, [r4]
+        ldr r4, =inst_sample_bank
+        str r3, [r4]
+	ldmfd sp!, {r4,lr}
+	bx lr
+
+@ [[music_play_song]](address of song)
+
+<<ARM Routines in ROM>>= 
+	.global music_play_song
+music_play_song:
+	stmfd sp!, {r4,lr}
+	ldr r1, =song_ptr
+	str r0, [r1]
+
+	@ Set order index to first order
+	ldr r1, =order_idx
+	mov r2, #0
+	strb r2, [r1]
+
+	@ Reset triggers
+	ldr r1, =triggers
+	mov r2, #0
+	mov r3, #max_triggers
+1:	str r2, [r1], #4
+	subs r3, r3, #1
+	bgt 1b
+
+	@ Start playing first pattern
+	ldrh r2, [r0], #4	@ Order len
+	ldrb r1, [r0]		@ First order
+	add r0, r0, r2
+	add r0, r0, r1, lsl #2
+	ldrh r4, [r0], #2	@ Pattern ptr
+	ldrh r0, [r0]
+	orr r0, r4, r0, lsl #16
+	mov r4, r0
+	bl music_play_pattern
+
+	ldmfd sp!, {r4,pc}
+
+@ [[music_stop_song]](void)
+
+<<ARM Routines in ROM>>= 
+        .global music_stop_song
+music_stop_song:
+        stmfd sp!, {r4,r5,lr}
+
+        ldr r0, =song_ptr
+        mov r1, #0
+        str r1, [r0]
+
+        @ Play silence on all channels
+        ldr r4, =silence_table
+        mov r5, #max_channels
+0:      ldr r0, [r4], #4
+        cmp r0, #0
+        beq 1f
+        mov lr, pc
+        mov pc, r0
+1:      subs r5, r5, #1
+        bne 0b
+
+        ldmfd sp!, {r4,r5,lr}
+        bx lr
+
+@ Just sets the pause bit.  XXX This should play silence only on
+non-pause channels.
+
+<<ARM Routines in ROM>>= 
+        .global music_set_pause
+music_set_pause:
+        stmfd sp!, {r4-r5,lr}
+
+        ldr r1, =pause_bit
+        strb r0, [r1]
+
+        @ Play silence on all channels initially
+        ldr r4, =silence_table
+        mov r5, #max_channels
+0:      ldr r0, [r4], #4
+        cmp r0, #0
+        beq 1f
+        mov lr, pc
+        mov pc, r0
+1:      subs r5, r5, #1
+        bne 0b
+
+        ldmfd sp!, {r4-r5,pc}
+
+@ [[music_play_pattern]](pattern ptr)
+
+<<ARM Routines in ROM>>= 
+music_play_pattern:
+	stmfd sp!, {r4-r5,lr}
+
+	@ Get channels
+	ldrb r1, [r0], #1
+	ldr r2, =channels
+	strb r1, [r2]
+
+	@ Set tempo
+	ldrb r2, [r0], #1
+	stmfd sp!, {r0-r3}
+	mov r0, r2
+	bl set_tempo
+	ldmfd sp!, {r0-r3}
+
+        ldrb r2, [r0], #1
+        ldr r3, =pause_channels
+        strb r2, [r3]
+
+        add r0, r0, #1              @ skip pad byte
+
+        <<Setup channel pointers>>
+
+	@ Zero channel counters
+	ldr r0, =chan_counters
+        mov r1, #max_channels
+	mov r2, #0
+3:	strh r2, [r0], #2
+	subs r1, r1, #1
+	bne 3b
+
+	@ Set channel defaults
+	ldr r0, =chan_info
+        mov r1, #0
+        mov r2, #max_channels
+0:      str r1, [r0], #4
+        subs r2, r2, #1
+        bne 0b
+
+        @ Play silence on all channels initially
+        ldr r4, =silence_table
+        mov r5, #max_channels
+0:      ldr r0, [r4], #4
+        cmp r0, #0
+        beq 1f
+        mov lr, pc
+        mov pc, r0
+1:      subs r5, r5, #1
+        bne 0b
+
+        @ Zero SFX bypass variables
+        ldr r0, =sfx_bypass
+        mov r1, #0
+        strb r1, [r0]
+
+	@ Return
+	ldmfd sp!, {r4-r5,pc}
+
+@ Here we walk the enabled channels byte and store a pointer read from
+the song if the channel is enabled, otherwise a $\Lambda$ to mark it
+disabled.
+
+<<Setup channel pointers>>= 
+	ldr r3, =chan_ptrs
+        mov r2, #max_channels
+1:	tst r1, #1
+        mov r4, #0
+        ldrne r4, [r0], #4
+	str r4, [r3], #4	@ store in pointers
+        mov r1, r1, lsr #1
+	subs r2, r2, #1		@ stop when we're out of channels
+	bne 1b
+
+@ [[music_update]]
+
+<<ARM Routines in ROM>>= 
+	.global music_update
+music_update:
+        stmfd sp!, {lr}
+        ldr r0, =update_pcm0_buffer
+        mov lr, pc
+        mov pc, r0
+
+        ldr r0, =update_pcm1_buffer
+        mov lr, pc
+        mov pc, r0
+        ldmfd sp!, {lr}
+
+        ldr r0, =song_ptr
+        ldr r0, [r0]
+        cmp r0, #0
+        bxeq lr
+
+	stmfd sp!, {r4-r10,r12,lr}
+
+	@ Some pointers throughout the process
+pattern_loop_return:
+	mov r7, #0		@ cur channel counter
+	ldr r8, =chan_ptrs
+	ldr r9, =chan_counters
+	ldr r10, =chan_info
+        ldr r12, =channels
+        ldrb r12, [r12]
+        ldr r0, =pause_channels
+        ldrb r0, [r0]
+        orr r12, r12, r0, lsl #8
+        ldr r0, =sfx_bypass
+        ldrb r0, [r0]
+        orr r12, r12, r0, lsl #16
+
+0:	ldrh r5, [r9]
+        tst r12, #1
+        beq 6f
+        ldr r4, [r8]
+        cmp r4, #0
+        beq 6f
+	cmp r5, #0
+	bne 4f
+
+1:	ldrh r6, [r4]
+	tst r6, #0xC000
+	bne 2f
+
+	str r4, [r8]		@ Save our position in the commands.
+
+        <<Play a note>>
+	b 4f
+
+2:      <<Deal with commands>>
+4:      <<Update counter>>
+5:      <<Handle staccato>>
+
+6:	strh r5, [r9], #2	@ store the counter value
+	add r8, r8, #4		@ next channel pointer
+	add r10, r10, #4	@ next channel info
+	add r7, r7, #1
+        mov r12, r12, lsr #1
+        ldr r0, =chan_ptrs
+        add r0, r0, #max_channels*4
+        cmp r8, r0
+        blt 0b
+
+
+        ldr r0, =sfx_bypass
+        ldrb r12, [r0]
+        mov r8, #0
+
+        ldr r9, =sfx_counters
+0:      ldrh r5, [r9]
+        mov r0, r12, lsr r8
+        tst r0, #1
+        beq 1f
+
+        subs r5, r5, #1
+        bne 1f
+
+        mov r0, #1
+        bic r12, r12, r0, lsl r8
+        @ play silence on this channel now
+        ldr r0, =silence_table
+        add r0, r0, r8, lsl #2
+        ldr r0, [r0]
+        cmp r0, #0
+        beq 1f
+        mov lr, pc
+        mov pc, r0
+        bal 1f
+
+1:      strh r5, [r9], #2
+        add r8, r8, #1
+        cmp r8, #max_channels
+        blt 0b
+
+        ldr r0, =sfx_bypass
+        strb r12, [r0]
+
+	ldmfd sp!, {r4-r10,r12,pc}
+
+@ Before playing a note, we have to make sure that no sound effect is
+playing on this channel, and that the game isn't paused (and that this
+channel is enabled if it is paused).
+
+<<Play a note>>= 
+        mov r0, r12, lsr #16
+        tst r0, #1
+        bne 4f
+
+        ldr r0, =pause_bit
+        ldrb r0, [r0]
+        tst r0, #1
+        beq 3f
+        mov r0, r12, lsr #8
+        tst r0, #1
+        beq 4f
+
+3:	ldr r0, [r10]		    @ channel info
+	mov r1, r6
+	ldr r3, =playback_table	    @ load routine from playback table
+	add r3, r3, r7, lsl #2
+	ldr r3, [r3]
+	mov lr, pc
+	mov pc, r3		    @ make the call
+
+@ First we determine whether this is a general command or a special
+command.  Then we should be calling the appropriate special command
+handler from the command table, but instead we are just calling
+[[command_sqr0]].  XXX.
+
+After processing a command we return to the loop, as we don't stop
+processing commands until we play a note.
+
+<<Deal with commands>>= 
+	@ Command
+	tst r6, #0x8000		@ Is this a general command?
+	bne 3f
+	@ Special command
+	add r4, r4, #2		@ hit the next command
+        mov r0, r6
+	bl command_sqr0
+	b 1b
+
+	@ General command
+3:	add r4, r4, #2		@ hit the next command
+	bl general_command
+	b 1b
+
+@ Here, we make sure the channel is silent.  This isn't applied if the
+sound effect bypass bit is set for this channel.
+
+<<Handle staccato>>= 
+5:	mov r0, r12, lsr #16
+        tst r0, #1
+        bne 6f
+
+        mov r0, #0
+	mov r1, r6
+	ldr r3, =silence_table	    @ load routine from silence table
+	add r3, r3, r7, lsl #2
+	ldr r3, [r3]
+	mov lr, pc
+	mov pc, r3		    @ make the call
+
+@ Here we update the counter according to the whole note length.  We
+think of each update as 1 tick.  If the channel has its staccato level
+set above zero, we want to play a bit of silence at the end of the note.
+
+<<Update counter>>= 
+4:	add r5, r5, #1
+
+	ldrh r1, [r4]		@ current note
+	ldr r0, [r10]		@ channel info
+        ldr r2, =wlen
+        ldrh r2, [r2]
+	bl calc_duration
+
+	@ Is the ctr ready for staccato?  Ready to be reset?
+	cmp r5, r0
+	blt 6f			@ r5 < r0 => not done note body
+	add r0, r0, r1
+	cmp r5, r0
+	blt 5f
+
+	@ It's over, reset counter and go to the next command for next
+	@ time.
+	mov r5, #0
+	add r4, r4, #2
+	str r4, [r8]
+	b 6f
+
+@ [[general_command]]
+
+Should {\em only} be called from [[music_update]].
+
+{\bf r4} $=$ cur channel pointer value, {\bf r5} $=$ cur channel
+counter, {\bf r6} $=$ command, {\bf r8} $=$ cur channel pointer,
+{\bf r9} $=$ cur channel counter address, {\bf r10} $=$ cur channel info
+address.
+
+<<ARM Routines in ROM>>= 
+general_command:
+	stmfd sp!, {lr}
+
+	mov r3, #0xff00
+	orr r3, r3, #0xff
+	cmp r6, r3
+	beq pattern_end_command
+        mov r3, r6, lsr #11
+        cmp r3, #0x18
+        beq loop_command
+	@ check other commands here
+	b 9f
+
+        @ Loop
+loop_command:
+        ldr r0, [r10]
+        ands r0, r0, #0xf
+        bne 1f
+
+        @ If the counter is zero, initialize the loop counter and move
+        @ us back to the specified location.
+        mov r1, r6, lsr #8
+        and r1, r1, #7
+        add r1, r1, #1
+        ldr r0, [r10]
+        orr r0, r0, r1
+        str r0, [r10]
+        bal 2f
+
+1:      @ If the counter is one, set the counter to zero and ignore this
+        @ loop.
+        @ If the counter was greater than one, subtract one from the
+        @ counter and move back to the specified location.
+        subs r0, r0, #1
+        ldr r1, [r10]
+        bic r1, r1, #0xf
+        orr r1, r1, r0
+        str r1, [r10]
+        beq 9f
+2:      and r3, r6, #0xff
+        add r3, r3, #2
+        sub r4, r4, r3, lsl #1
+        bal 9f
+
+	@ Pattern end -- look up next pattern to play, reset everything
+	@ else.
+pattern_end_command:
+	ldr r0, =order_idx
+	ldrb r2, [r0]
+	add r2, r2, #1		@ next order
+	ldr r0, =song_ptr
+	ldr r0, [r0]
+	ldrh r3, [r0], #4	@ order table len
+	ldrb r1, [r0, r2]
+	cmp r1, #0xff		@ loop order?
+	addeq r2, r2, #1	@ if so, read in the new order idx
+	ldreqb r2, [r0, r2]
+	ldreqb r1, [r0, r2]	@ and the new pattern
+
+	add r0, r0, r3		@ skip to the pattern table
+	add r0, r0, r1, lsl #2
+	ldr r0, [r0]            @ get the pattern address
+
+	ldr r1, =order_idx	@ write back the new order idx
+	strb r2, [r1]
+
+	@ Set up the new pattern
+	bl music_play_pattern
+	@ Sneaky!
+        ldmfd sp!, {lr}
+        bal pattern_loop_return
+
+9:	@ Return
+	ldmfd sp!, {pc}
+
+@ [[command_sqr0]] -- should only be called from [[music_update]].
+
+<<ARM Routines in ROM>>= 
+command_sqr0:
+	stmfd sp!, {lr}
+	mov r3, r0, lsr #8
+	cmp r3, #0x48
+	beq staccato_sqr0
+	cmp r3, #0x40
+	beq setinstrument_sqr0
+	b 9f
+
+staccato_sqr0:
+	and r0, r0, #3		@ we only want the bottom two bits
+	ldr r1, [r10]
+	bic r1, r1, #0xC0
+	orr r1, r1, r0, lsl #6
+	str r1, [r10]
+	b 9f
+
+setinstrument_sqr0:
+	and r0, r0, #0xff
+	ldr r1, [r10]		@ chaninfo
+	bic r1, r1, #0xFF00
+	orr r1, r1, r0, lsl #8
+	str r1, [r10]
+	b 9f
+
+9:      ldmfd sp!, {pc}
+
+@ [[calc_duration]]\verb:(channel info, duration shl 3 | modifiers, whole len):
+
+Return values: note length in {\bf r0}, staccato pause length in {\bf
+r1}.
+
+We divide the current whole note length by the duration, but if this
+ends up being zero, we always round up to 1.
+
+FIXME tie is broken?
+
+<<ARM Routines in ROM>>= 
+	.global calc_duration
+calc_duration:
+	stmfd sp!,{r4-r5,lr}
+
+	@ Mask out non-duration information
+	and r1, r1, #63
+	@ Reduce whole length to duration in ms
+	mov r4, r1, lsr #3
+	movs r4, r2, lsr r4	@ Divide by duration (as 0 = no division)
+        moveq r4, #1
+
+	@ Apply dot or triplet modifiers (note that these are mutex!)
+	tst r1, #duration_dot
+	beq 1f
+	@ time * 3/2
+	add r4, r4, r4, lsl #1	@ multiply by 3
+	mov r4, r4, lsr #1	@ divide by two
+1:	tst r1, #duration_triplet
+	beq 2f
+	@ time * 2/3
+        ldr r5, =0x5556
+        mul r4, r5, r4
+        mov r4, r4, asr #15
+
+2:	@ Grab only staccato info
+	mov r0, r0, lsr #6
+	and r0, r0, #3
+	@ If tied, do not apply staccato
+	tst r1, #duration_tie
+	movne r0, #0
+
+	@ Apply staccato
+	cmp r0, #0
+	moveq r5, #0
+	movne r5, r4, lsr r0	@ r5 is the staccato length
+	subne r4, r4, r5	@ length = length - length/(2^staccato)
+
+3:	@ Return
+	mov r0, r4
+	mov r1, r5
+	ldmfd sp!, {r4-r5,pc}
+
+@ [[calc_pitch]](octave, note) -- translate note to pitch.
+
+<<ARM Routines in ROM>>= 
+calc_pitch:
+	@ Extract note info
+	mov r1, r1, lsr #6
+	and r1, r1, #63
+
+	@ x = 2 * (o*12 + n)
+        add r2, r0, r0, lsl #1
+        mov r2, r2, lsl #2
+	add r2, r2, r1
+	mov r2, r2, lsl #1
+
+	ldr r1, =pitch_xlat	@ Translate
+	ldrh r0, [r1, r2]
+	bx lr
+
+@ [[set_tempo]](tempo-60).  We set [[wlen]] to an appropriate value
+based on frame timing ($\frac{1}{60}$).  See the [[tempo_xlat]] table.
+
+<<ARM Routines in ROM>>= 
+set_tempo:
+	stmfd sp!, {lr}
+	ldr r1, =wlen
+	ldr r2, =tempo_xlat
+	ldrb r2, [r2, r0]
+	strh r2, [r1]
+	ldmfd sp!, {pc}
+
+@
+
+<<ARM Routines in IWRAM>>= 
+swap_pcm_buffers:
+        stmfd sp!, {lr}
+        bl swap_pcm0_buffer
+        bl swap_pcm1_buffer
+        ldmfd sp!, {pc}
+
+@ Updating the buffer involves walking through the sample in a vaguely
+Bresenham style.  Once we reach the end of the sample, we set it to
+$\Lambda$ so that it doesn't keep playing.  (we might want to check a
+loop bit later)
+
+Discuss buffer swapping here and whether these should be in IWRAM or
+not.
+
+<<ARM Routines in IWRAM>>= 
+swap_pcm0_buffer:
+        ldr r0, =REG_DMA1CNT
+        mov r1, #0
+        strh r1, [r0, #2]
+
+        ldr r2, =pcm0_active
+        ldrb r1, [r2]
+        eors r1, r1, #1
+        strb r1, [r2]
+        ldr r0, =pcm0_buffer_a
+        ldr r3, =pcm0_buffer_b
+        eorne r0, r0, r3
+        eorne r3, r0, r3
+        eorne r0, r0, r3
+        ldr r2, =REG_DMA1SRC
+        str r3, [r2], #4
+        ldr r3, =REG_DS_FIFO_A
+        str r3, [r2], #4
+        mov r3, #1
+        strh r3, [r2], #2
+        mov r3, #0xb600
+        strh r3, [r2]
+        bx lr
+
+swap_pcm1_buffer:
+        ldr r0, =REG_DMA2CNT
+        mov r1, #0
+        strh r1, [r0, #2]
+
+        ldr r2, =pcm1_active
+        ldrb r1, [r2]
+        eors r1, r1, #1
+        strb r1, [r2]
+        ldr r0, =pcm1_buffer_a
+        ldr r3, =pcm1_buffer_b
+        eorne r0, r0, r3
+        eorne r3, r0, r3
+        eorne r0, r0, r3
+        ldr r2, =REG_DMA2SRC
+        str r3, [r2], #4
+        ldr r3, =REG_DS_FIFO_B
+        str r3, [r2], #4
+        mov r3, #1
+        strh r3, [r2], #2
+        mov r3, #0xb600
+        strh r3, [r2]
+        bx lr
+
+@
+
+<<ARM Routines in IWRAM>>= 
+update_pcm0_buffer:
+        stmfd sp!, {r4-r9,lr}
+
+        ldr r2, =pcm0_active
+        ldrb r1, [r2]
+        tst r1, #1
+        ldreq r0, =pcm0_buffer_a
+        ldrne r0, =pcm0_buffer_b
+        ldr r5, =pcm_sample_params_0
+        ldr r6, =pcm_sample_0
+        ldr r1, [r6]
+        add r9, r0, #PCM_BUFLEN
+        cmp r1, #0
+        beq 8f
+
+        <<Fill buffer with sample>>
+
+        str r2, [r5, #SAMP_CTR]
+
+8:      <<Wipe the remainder of the buffer>>
+
+9:
+        ldmfd sp!, {r4-r9,pc}
+
+@ Same idea as above, for PCM1.
+
+<<ARM Routines in IWRAM>>= 
+update_pcm1_buffer:
+        stmfd sp!, {r4-r9,lr}
+
+        ldr r2, =pcm1_active
+        ldrb r1, [r2]
+        tst r1, #1
+        ldreq r0, =pcm1_buffer_a
+        ldrne r0, =pcm1_buffer_b
+        ldr r5, =pcm_sample_params_1
+        ldr r6, =pcm_sample_1
+        ldr r1, [r6]
+        add r9, r0, #PCM_BUFLEN
+        cmp r1, #0
+        beq 8f
+
+        <<Fill buffer with sample>>
+
+        str r2, [r5, #SAMP_CTR]
+
+8:      <<Wipe the remainder of the buffer>>
+
+9:
+        ldmfd sp!, {r4-r9,pc}
+
+@ Here we copy the sample into the buffer until one or the other has
+been exhausted.
+
+<<Fill buffer with sample>>= 
+        ldr r2, [r5, #SAMP_CTR]
+        ldr r3, [r5, #SAMP_RATIO]
+        ldrh r8, [r5, #SAMP_LEN]
+
+        sub r4, r8, r2, lsr #16
+        umull r4, r7, r3, r4
+        mov r4, r4, lsr #16
+        orr r4, r4, r7, lsl #16
+
+        cmp r4, #PCM_BUFLEN
+        movlt r7, #0
+        strlt r7, [r6]
+        movgt r4, #PCM_BUFLEN
+
+        cmp r4, #0
+        beq 9f
+
+0:      mov r7, r2, lsr #16
+        ldrb r6, [r1, r7]
+        strb r6, [r0], #1
+        add r2, r2, r3
+        subs r4, r4, #1
+        bgt 0b
+
+@ First we wipe as much of the buffer as possible with blocks of 12
+bytes.  Then we fill in the cracks.
+
+<<Wipe the remainder of the buffer>>= 
+        mov r4, #0
+        mov r5, #0
+        mov r6, #0
+        sub r1, r9, #12
+        cmp r0, r1
+        bge 1f
+0:      stmia r0!, {r4-r6}
+        cmp r0, r1
+        blt 0b
+
+1:      cmp r0, r9
+        bge 1f
+0:      strb r4, [r0], #1
+        cmp r0, r9
+        blt 0b
+1:
+
+@ [[music_play_sfx]](channel, channel info, note) -- Play a sound effect.
+
+<<ARM Routines in ROM>>= 
+        .global music_play_sfx
+music_play_sfx:
+        stmfd sp!, {r4,r5,lr}
+        mov r5, r0
+        ldr r4, =sfx_bypass
+        mov r3, #1
+        mov r3, r3, lsl r0
+        ldrb r0, [r4]
+        orr r0, r0, r3
+        strb r0, [r4]
+
+        stmfd sp!, {r1,r2}
+        mov r0, r1
+        mov r1, r2
+        mov r2, #60
+        bl calc_duration
+        ldr r2, =sfx_counters
+        add r2, r2, r5, lsl #1
+        strh r0, [r2]
+        ldmfd sp!, {r1,r2}
+
+        mov r0, r1
+        mov r1, r2
+        ldr r2, =playback_table
+        add r2, r2, r5, lsl #2
+        ldr r2, [r2]
+        cmp r2, #0
+        beq 1f
+        mov lr, pc
+        mov pc, r2
+
+1:      ldmfd sp!, {r4,r5,pc}
+
+@ [[play_note_sqr0]](channel info, note) -- Play a note on channel 0.
+
+<<ARM Routines in ROM>>= 
+play_note_sqr0:
+	stmfd sp!, {r4-r6,lr}
+	mov r4, r0, lsr #8
+	@ Translate note to pitch
+	mov r0, r0, lsr #4
+	and r0, r0, #3		@ extract octave
+	bl calc_pitch
+	cmp r0, #0
+	bne 1f
+	bl play_silence_sqr0
+	b 9f
+
+1:	mov r6, r0
+	@ Play the sound
+        ldr r1, =inst_sqr0_bank
+        ldr r1, [r1]
+        add r1, r1, r4, lsl #2
+        ldr r5, [r1]
+        ldr r4, =REG_SQR0CNT
+        str r5, [r4], #4
+        orr r5, r6, #0x8000     @ looping sound
+        strh r5, [r4]
+	@ Return
+9:	ldmfd sp!, {r4-r6,pc}
+
+@ [[play_silence_sqr0]]() -- Deaden channel 0.
+
+<<ARM Routines in ROM>>= 
+play_silence_sqr0:
+	@ Play the sound
+        ldr r0, =REG_SQR0CNT
+        mov r1, #0x08
+        str r1, [r0], #4
+	mov r1, #0xC000		@ non-looping sound
+        strh r1, [r0]
+	@ Return
+        mov pc, lr
+
+@ [[play_note_sqr1]](channel info, note) -- Play a note on channel 1.
+
+<<ARM Routines in ROM>>= 
+play_note_sqr1:
+	stmfd sp!, {r4-r6,lr}
+	mov r4, r0, lsr #8
+	@ Translate note to pitch
+	mov r0, r0, lsr #4
+	and r0, r0, #3		@ extract octave
+	bl calc_pitch
+	cmp r0, #0
+	bne 1f
+	bl play_silence_sqr1
+	b 9f
+	
+1:	mov r6, r0
+	@ Play the sound
+        ldr r1, =inst_sqr1_bank
+        ldr r1, [r1]
+        add r1, r1, r4, lsl #1
+        ldr r4, =REG_SQR1CNT
+        ldrh r5, [r1]
+        strh r5, [r4], #4
+        @orr r5, r6, #0xC000     @ non-looping sound
+        orr r5, r6, #0x8000     @ looping sound
+        strh r5, [r4]
+	@ Return
+9:	ldmfd sp!, {r4-r6,pc}
+
+@ [[play_silence_sqr1]]() -- Deaden channel 1.
+
+<<ARM Routines in ROM>>= 
+play_silence_sqr1:
+	stmfd sp!, {r4-r5,lr}
+	@ Play the sound
+        mov r4, #reg_base
+        mov r5, #0x00           @ max length
+        orr r5, r5, #0x0000     @ zeroed envelope
+        strh r5, [r4, #0x68]    @ REG_SOUND1CNT_H
+	mov r5, #0xC000		@ non-looping sound
+        strh r5, [r4, #0x6c]    @ REG_SOUND1CNT_X
+	@ Return
+	ldmfd sp!, {r4-r5,pc}
+
+@ Plays a note on the GBC wave channel.
+
+<<ARM Routines in ROM>>= 
+play_note_gbcwav:
+	stmfd sp!, {r4-r6,lr}
+	mov r4, r0, lsr #8
+	@ Translate note to pitch
+	mov r0, r0, lsr #4
+	and r0, r0, #3		@ extract octave
+	bl calc_pitch
+	cmp r0, #0
+	bne 1f
+	bl play_silence_gbcwav
+	b 9f
+
+1:	mov r6, r0
+	@ Play the sound
+        ldr r5, =0x20ff
+        ldr r4, =REG_GBCWAVCNT
+        strh r5, [r4, #2]
+        orr r5, r6, #0x8000     @ looping sound
+        strh r5, [r4, #4]
+	@ Return
+9:	ldmfd sp!, {r4-r6,pc}
+
+
+@ Silences the GBC wave channel.
+
+<<ARM Routines in ROM>>= 
+play_silence_gbcwav:
+	@ Play the sound
+        ldr r0, =REG_GBCWAVCNT
+        mov r1, #0x6000
+        strh r1, [r0, #2]
+	@ Return
+        mov pc, lr
+
+@ Play a noise note.
+
+<<ARM Routines in ROM>>= 
+play_note_noise:
+	stmfd sp!, {r4-r6,lr}
+        mov r1, r1, lsr #6
+        and r1, r1, #0b111111
+	cmp r1, #0
+	bne 1f
+	bl play_silence_noise
+	b 9f
+
+1:	mov r6, r0
+	@ Play the sound
+        ldr r0, =inst_noise_bank
+        ldr r0, [r0]
+        add r0, r0, r1, lsl #2
+        ldrh r1, [r0], #2
+        ldr r4, =REG_NOISECNT
+        strh r1, [r4], #4
+        ldrh r1, [r0], #2
+        strh r1, [r4]
+	@ Return
+9:	ldmfd sp!, {r4-r6,pc}
+
+@ Silence the noise channel.
+
+<<ARM Routines in ROM>>= 
+play_silence_noise:
+        ldr r0, =REG_NOISECNT
+        mov r1, #0
+        strh r1, [r0], #4
+        strh r1, [r0]
+        bx lr
+
+@ Sample counts for each PCM channel, keep track of how many samples are
+left to play.
+
+<<Constants>>= 
+.equ SAMP_CTR, 0
+.equ SAMP_RATIO, 4
+.equ SAMP_LEN, 8
+.equ SAMP_STRUCTSIZE, 12
+.equ PCM_BUFLEN, 304
+.equ PCM_DENOM, 18157
+@
+
+<<EWRAM Variables>>= 
+pcm_sample_0: .skip 4
+pcm_sample_1: .skip 4
+pcm0_active: .skip 1
+pcm1_active: .skip 1
+.align
+@
+
+<<IWRAM Variables>>=
+pcm_sample_params_0: .skip SAMP_STRUCTSIZE
+pcm_sample_params_1: .skip SAMP_STRUCTSIZE
+pcm0_buffer_a: .skip PCM_BUFLEN
+pcm0_buffer_b: .skip PCM_BUFLEN
+pcm1_buffer_a: .skip PCM_BUFLEN
+pcm1_buffer_b: .skip PCM_BUFLEN
+
+@ Plays a note on the either PCM channel.
+
+<<ARM Routines in ROM>>= 
+.macro play_note_pcm_m chan
+	stmfd sp!, {r4-r6,lr}
+	mov r4, r0, lsr #8
+        tst r1, #1<<12          @ is this note based, or instrument based?
+        bne 3f
+
+	@ Translate note to pitch
+	mov r0, r0, lsr #4
+	and r0, r0, #3		@ extract octave
+	@ Extract note info
+	mov r1, r1, lsr #6
+	and r1, r1, #63
+
+	@ x = 2 * (o*12 + n)
+        add r2, r0, r0, lsl #1
+        mov r2, r2, lsl #2
+	add r2, r2, r1
+
+        mov r0, r2
+	cmp r0, #0
+	bne 1f
+	bl play_silence_pcm\chan
+	b 9f
+
+1:      mov r5, r0
+        mov r1, r4
+        bal 7f
+
+3:      mov r1, r1, lsr #6
+        and r1, r1, #0b111111
+        mov r5, #34
+
+7:      ldr r0, =inst_sample_bank
+        ldr r0, [r0]
+        add r0, r0, r1, lsl #3
+        ldrh r1, [r0], #2
+        ldrh r2, [r0], #2
+        ldr r3, [r0]
+
+        ldr r0, =pcm_sample_\chan
+        str r3, [r0]
+
+        ldr r0, =pcm_pitch_xlat
+        add r0, r0, r5, lsl #2
+        ldr r0, [r0]
+        umull r2, r3, r0, r2
+        mov r2, r2, lsr #16
+        orr r2, r2, r3, lsl #16
+        ldr r3, =0x39C02            @ 0xffffffff / PCM_DENOM + 1
+        @ldr r3, =(0x0ffffffff / PCM_DENOM)
+        umull r0, r2, r3, r2
+        mov r0, r0, lsr #16
+        orr r2, r0, r2, lsl #16
+
+        ldr r0, =pcm_sample_params_\chan
+        strh r1, [r0, #SAMP_LEN]
+        mov r1, #0
+        str r1, [r0, #SAMP_CTR]
+        str r2, [r0, #SAMP_RATIO]
+
+	@ Return
+9:	ldmfd sp!, {r4-r6,pc}
+
+.endm
+
+play_note_pcm0: play_note_pcm_m 0
+play_note_pcm1: play_note_pcm_m 1
+
+@ Silences the first PCM channel.
+
+<<ARM Routines in ROM>>= 
+play_silence_pcm0:
+        ldr r0, =pcm_sample_0
+        mov r1, #0
+        str r1, [r0]
+        mov pc, lr
+
+@ Silences the second PCM channel.
+
+<<ARM Routines in ROM>>= 
+play_silence_pcm1:
+        ldr r0, =pcm_sample_1
+        mov r1, #0
+        str r1, [r0]
+        mov pc, lr
+
+@ [[do_nothing]] -- a very magical routine.
+
+<<ARM Routines in ROM>>= 
+do_nothing:
+	mov pc, lr
+
+@ Tables for playback and silence functions.
+
+<<Read-only data>>= 
+.align
+playback_table: .word play_note_sqr0, play_note_sqr1, play_note_gbcwav
+                .word play_note_noise, play_note_pcm0, play_note_pcm1
+                .word do_nothing
+silence_table: .word play_silence_sqr0, play_silence_sqr1, play_silence_gbcwav
+               .word play_silence_noise, play_silence_pcm0, play_silence_pcm1
+               .word do_nothing
+
+@ Pitch translation table for synth channels.
+
+<<Read-only data>>= 
+pitch_xlat:
+.short 0, 44, 156, 262, 362, 457, 546, 630, 710, 785, 856, 923
+.short 986, 1046, 1102, 1155, 1205, 1252, 1297, 1339, 1379, 1416, 1452, 1485
+.short 1517, 1547, 1575, 1601, 1626, 1650, 1672, 1693, 1713, 1732, 1750, 1766
+.short 1782, 1797, 1811, 1824, 1837, 1849, 1860, 1870, 1880, 1890, 1899, 1907
+.short 1915, 1922, 1929, 1936, 1942, 1948, 1954, 1959, 1964, 1969, 1973, 1977
+.short 1981, 1985, 1988, 1992, 1995, 1998, 2001, 2003, 2006, 2008, 2010, 2012
+.short 2014, 2016, 2018, 2020, 2021, 2023, 2024, 2025, 2027, 2028, 2029, 2030
+.short 2031, 2032, 2033, 2034, 2034, 2035, 2036, 2036, 2037, 2038, 2038, 2039
+.short 2039, 2040
+.align
+
+@ Pitch translation tables for PCM channels.
+
+<<Read-only data>>= 
+pcm_pitch_xlat:
+.word 0x23eb, 0x260d, 0x2851, 0x2ab7, 0x2d41, 0x2ff2, 0x32cb, 0x35d1
+.word 0x3904, 0x3c68, 0x3fff, 0x43ce, 0x47d6, 0x4c1b, 0x50a2, 0x556e
+.word 0x5a82, 0x5fe4, 0x6597, 0x6ba2, 0x7208, 0x78d0, 0x7fff, 0x879c
+.word 0x8fac, 0x9837, 0xa145, 0xaadc, 0xb504, 0xbfc8, 0xcb2f, 0xd744
+.word 0xe411, 0xf1a1, 0xffff, 0x10f38, 0x11f59, 0x1306f, 0x1428a
+.word 0x155b8, 0x16a09, 0x17f91, 0x1965f, 0x1ae89, 0x1c823, 0x1e343
+.word 0x1ffff, 0x21e71, 0x23eb3, 0x260df, 0x28514, 0x2ab70, 0x2d413
+.word 0x2ff22, 0x32cbf, 0x35d13, 0x39047, 0x3c686, 0x3ffff, 0x43ce3
+.word 0x47d66, 0x4c1bf, 0x50a28, 0x556e0, 0x5a827, 0x5fe44, 0x6597f
+.word 0x6ba27, 0x7208f, 0x78d0d, 0x7ffff, 0x879c7, 0x8facd, 0x9837f
+.word 0xa1451, 0xaadc0, 0xb504f, 0xbfc88, 0xcb2ff, 0xd744f, 0xe411e
+.word 0xf1a1b, 0xfffff, 0x10f38f, 0x11f59a, 0x1306fe, 0x1428a2
+.word 0x155b80, 0x16a09e, 0x17f910, 0x1965fe, 0x1ae89f, 0x1c823d
+.word 0x1e3437, 0x1fffff, 0x21e71f, 0x23eb35
+
+@ Tempo translation table
+
+<<Read-only data>>= 
+tempo_xlat:
+.byte 240, 236, 232, 228, 225, 221, 218, 214, 211, 208, 205, 202, 200
+.byte 197, 194, 192, 189, 187, 184, 182, 180, 177, 175, 173, 171, 169
+.byte 167, 165, 163, 161, 160, 158, 156, 154, 153, 151, 150, 148, 146
+.byte 145, 144, 142, 141, 139, 138, 137, 135, 134, 133, 132, 130, 129
+.byte 128, 127, 126, 125, 124, 123, 122, 121, 120, 119, 118, 117, 116
+.byte 115, 114, 113, 112, 111, 110, 109, 109, 108, 107, 106, 105, 105
+.byte 104, 103, 102, 102, 101, 100, 100, 99, 98, 97, 97, 96, 96, 95, 94
+.byte 94, 93, 92, 92, 91, 91, 90, 90, 89, 88, 88, 87, 87, 86, 86, 85
+.byte 85, 84, 84, 83, 83, 82, 82, 81, 81, 80, 80, 80, 79, 79, 78, 78
+.byte 77, 77, 77, 76, 76, 75, 75, 75, 74, 74, 73, 73, 73, 72, 72, 72
+.byte 71, 71, 70, 70, 70, 69, 69, 69, 68, 68, 68, 67, 67, 67, 66, 66
+.byte 66, 66, 65, 65, 65, 64, 64, 64, 64, 63, 63, 63, 62, 62, 62, 62
+.byte 61, 61, 61, 61, 60, 60, 60, 60, 59, 59, 59, 59, 58, 58, 58, 58
+.byte 57, 57, 57, 57, 56, 56, 56, 56, 56, 55, 55, 55, 55, 54, 54, 54
+.byte 54, 54, 53, 53, 53, 53, 53, 52, 52, 52, 52, 52, 51, 51, 51, 51
+.byte 51, 51, 50, 50, 50, 50, 50, 50, 49, 49, 49, 49, 49, 48, 48, 48, 48
+.byte 48, 48, 48, 47, 47, 47, 47, 47, 47, 46, 46, 46, 46, 46, 46, 46
+.byte 45, 45
+.align
+
+@ Waveform data for GBC wave channel.
+
+<<Read-only data>>= 
+triangle_table:
+.byte 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef
+.byte 0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10
+.align
+
+@
+
+% EOF music.nws

@@ -1,0 +1,3 @@
+
+data_src += osd/meter.s osd/jewel.s osd/health.s ;
+

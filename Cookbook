@@ -1,0 +1,48 @@
+/*
+ * top-level cookbook for Convergence
+ * $Id: Cookbook,v 1.16 2002/12/12 01:32:47 tek Exp $
+ */
+
+#include "Recipes"
+
+set silent; /* so we don't annoy ret */
+/* set meter; */ /* uncomment this to get cpu usage info */
+
+objcopy = /cross/bin/arm-agb-elf-objcopy;
+as = /cross/bin/arm-agb-elf-as;
+asflags = "-mthumb-interwork -mcpu=arm7tdmi";
+ar = /cross/bin/arm-agb-elf-ar;
+ldflags = -T lnkscript;
+ld = /cross/bin/arm-agb-elf-ld;
+
+engine_src = start.s gfx.s dma.s sprite.s font.s assert.s interrupt.s
+	     alloc.s collision.s slut.s timer.s music.s layer.s text.s
+	     fx.s math.s dynpal.s random.s;
+game_src = main.s game.s level.s actor.s offset.s primitive_ai.s
+           physics.s ephemerals.s sam.s osd.s guard_act.s;
+data_src = palettes.s archetypes.s quests.s testsong.s instruments.s
+           mxtable.s hefts.s;
+all = main.bin;
+
+#include "actors/Cookbook"
+#include "levels/Cookbook"
+#include "ephem/Cookbook"
+#include "fonts/Cookbook"
+#include "tools/Cookbook"
+#include "static/Cookbook"
+#include "osd/Cookbook"
+
+main_src = [stringset [engine_src] [game_src] [data_src]];
+main_objs = [fromto %0%.s %0%.o [main_src]];
+
+dot_clean += main [main_objs];
+
+main: [[target]_objs]
+{
+    [ld] [ldflags] -o [target] [resolve [[target]_objs]];
+}
+
+
+#include-cooked-nowarn [fromto %0%.s %0.%.s.d [main_src]]
+#include-cooked-nowarn [fromto %0%.inc %0.%.inc.d [glob "*.inc"]]
+

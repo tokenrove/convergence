@@ -1,0 +1,1012 @@
+% actor -- actor management subsystem.
+% Convergence
+% Copyright Pureplay Games / 2002
+%
+% $Id: actor.nws,v 1.10 2002/12/12 19:38:21 tek Exp $
+
+The allocation bitmap code used here is based largely on the code in
+sprite.s, so if bugs are found in the sprite.s allocator, this code
+should also be investigated.
+
+<<Files to include>>= 
+        .include "actor.inc"
+        .include "gba.inc"
+        .include "game.inc"
+        .include "sprite.inc"
+@
+
+[[BITMAP_SIZE]] dictates the size of the actor allocation bitmap.
+8 is the maximum without changing quite a few other things.
+
+<<Constants>>= 
+.equ BITMAP_SIZE,8
+.equ MAXACTORS,BITMAP_SIZE*32
+
+@ XXX really this should be named [[actor_alloc_map]], but at the moment
+we have no time for that.
+
+<<IWRAM Variables>>= 
+        .global alloc_map
+alloc_map: .skip BITMAP_SIZE*4
+
+<<EWRAM Variables>>= 
+        .global actor_rt
+actor_rt: .skip MAXACTORS*ACTRT_SIZE
+
+
+        .global actor_segs
+actor_segs: .skip MAXACTORS*4
+
+@ XXX this probably should use the sprites.inc definition.
+<<Constants>>= 
+.equ MAXSPRITES, 128
+
+@ The actor--sprite look-up table allows routines which have received a
+sprite to reconstruct the missing context and get the actor index of
+that sprite.  As is customary through-out the program, an entry of
+[[0xff]] indicates that the sprite is not associated with any actor.
+
+<<EWRAM Variables>>= 
+        .global actor_sprite_lut
+actor_sprite_lut: .skip MAXSPRITES
+
+@ The [[hero_handle]] stores the reference to the player controlled
+actor.  Note that in the case of a multiplayer game, we would consider
+the player on the current GBA the hero, and the others would be
+non-human actors.
+
+<<EWRAM Variables>>= 
+        .global hero_handle
+hero_handle: .skip 1
+.align
+
+@ Number of pixels by which to fudge clipping.  This affects what actors
+will have sprites shown on screen.
+
+<<Constants>>= 
+.equ CLIP_FUDGE_X, 64
+.equ CLIP_FUDGE_Y, 32
+
+@ The realm of the active window.  This affects what actors get updated
+with real physics and such.  This must always be larger than
+[[CLIP_FUDGE]].
+
+<<Constants>>= 
+.equ ACTIVE_FUDGE_X, 320
+.equ ACTIVE_FUDGE_Y, 240
+
+@ \section{{\tt actor\_init}}
+
+[[actor_init]] --- Sets up the actor allocation bitmap, et cetera.
+Should be called each time a new area is loaded.
+
+<<ARM Routines in ROM>>= 
+        .global actor_init
+actor_init:
+        <<Wipe the allocation bitmap>>
+        <<Wipe the reverse actor LUT>>
+        <<Wipe the actor segment storage>>
+        bx lr
+
+@
+
+<<Wipe the allocation bitmap>>= 
+        ldr r0, =alloc_map
+        mov r1, #BITMAP_SIZE
+        mov r2, #0
+0:      str r2, [r0], #4
+        subs r1, r1, #1
+        bne 0b
+
+@ Sets all the actor--sprite look-ups to [[0xff]] (no actor).
+
+<<Wipe the reverse actor LUT>>= 
+        ldr r0, =actor_sprite_lut
+        mov r1, #MAXSPRITES
+        ldr r2, =0xffffffff
+0:      str r2, [r0], #4
+        subs r1, r1, #4
+        bgt 0b
+
+@ Sets all the actor segment references to 0.
+
+<<Wipe the actor segment storage>>= 
+        ldr r0, =actor_segs
+        mov r1, #MAXACTORS*4
+        mov r2, #0
+0:      str r2, [r0], #4
+        sub r1, r1, #4
+        bgt 0b
+
+@ \section{{\tt actor\_shutdown}}
+
+[[actor_shutdown]] -- remove all actors, deallocating any used memory,
+et cetera.  However, it does not wipe the actor datastructures.
+Currently we leave this for [[actor_init]]... bad idea?  (uh oh,
+efficiency versus thoroughness once again)
+
+<<ARM Routines in ROM>>= 
+        .global actor_shutdown
+actor_shutdown:
+        stmfd sp!, {lr}
+
+        @ walk the allocation bitmap
+        ldr r0, =alloc_map
+        mov r1, #BITMAP_SIZE
+        mov r2, #0
+ @ {
+0:      ldr r3, [r0], #4
+ @   {
+1:      tst r3, #1
+        beq 5f
+
+        stmfd sp!, {r0-r3}
+        mov r0, r2
+        bl actor_remove
+        ldmfd sp!, {r0-r3}
+
+5:      add r2, r2, #1
+        movs r3, r3, lsr #1
+        bne 1b
+ @   }
+        add r2, r2, #31
+        bic r2, r2, #31
+        subs r1, r1, #1
+        bne 0b
+ @ }
+
+        ldmfd sp!, {lr}
+        bx lr
+
+@ \section{{\tt actor\_add}}
+
+[[actor\_add]] -- Adds an actor to the actor structure.  Does not do any
+locking so be careful of concurrency issues using this.  Takes a pointer
+to an actor const, which is not used after this function has ended (and
+so can safely exist temporarily in RAM for the purpose of dynamic actor
+spawning). Returns a byte handle.
+
+See level module for a description of the structure desired in {\bf r0}.
+
+<<ARM Routines in ROM>>= 
+        .global actor_add
+actor_add:
+        stmfd sp!, {r4,lr}
+
+        mov r4, r0
+        <<Find the first free handle>>
+        <<Set this bit in the allocation bitmap>>
+
+        ldr r0, =actor_rt
+        add r0, r0, r2, lsl #5
+        <<Initialize blank elements of actor runtime>>
+        <<Copy the const into this actor's runtime>>
+        mov r4, r2
+        <<Load archetype information>>
+        <<Initialize actor segment information>>
+
+        @ Return handle.
+        mov r0, r4
+        ldmfd sp!, {r4,lr}
+        bx lr
+
+@ We jump through the allocation map looking for a clear bit.  If we
+find one, we jump ahead to label 2.
+
+<<Find the first free handle>>= 
+        ldr r0, =alloc_map
+        mov r1, #BITMAP_SIZE
+        mov r2, #0
+
+ @ {
+0:      ldr r3, [r0]
+ @   {
+1:      tst r3, #1
+        beq 2f
+        add r2, r2, #1
+        mov r3, r3, lsr #1            @ next bit
+        tst r2, #31                    @ next word when r2&31 = 0
+        bne 1b
+ @   }
+        add r0, r0, #4
+        subs r1, r1, #1
+        bne 0b
+ @ }
+
+@ Otherwise, we haven't found one, and we have to do something about
+this exceptional condition.  When debugging is enabled, it's a piece of
+cake.  We just puke out an error message.  In a production environment,
+we try something tricky -- we just give that actor the very last actor
+ID available.  This will almost certainly cause everything to break.
+
+<<Find the first free handle>>= 
+#ifndef NDEBUG
+        ldr r0, =msg_nofreeactors
+        bal abort
+#endif
+        @ if we got here, debugging is turned off.
+        mov r2, #MAXACTORS
+        sub r2, r2, #1
+        sub r0, r0, #4
+
+@ This thing with having to load {\bf r1} with [[#1]] really annoys me
+for some reason.
+
+<<Set this bit in the allocation bitmap>>= 
+2:      and r3, r2, #31
+        mov r1, #1
+        mov r1, r1, lsl r3
+        ldr r3, [r0]
+        orr r3, r3, r1
+        str r3, [r0]
+
+@ We don't load most of the physics-related members from anywhere in
+particular, so now is the ideal time to reset them to zero.  The actor's
+segment information is reset below.
+
+<<Initialize blank elements of actor runtime>>= 
+        mov r3, #0
+        strh r3, [r0, #ACTRT_VX]
+        strh r3, [r0, #ACTRT_VY]
+        strh r3, [r0, #ACTRT_AX]
+        strh r3, [r0, #ACTRT_AY]
+        strb r3, [r0, #ACTRT_XDELTA]
+        strb r3, [r0, #ACTRT_YDELTA]
+
+@
+
+<<Initialize actor segment information>>= 
+        ldr r0, =actor_segs
+        add r0, r0, r4, lsl #2
+        mov r1, #0
+        strh r1, [r0, #ACTSEG_WALL]
+        strh r1, [r0, #ACTSEG_FLOOR]
+@
+
+<<Copy the const into this actor's runtime>>= 
+        ldrh r3, [r4], #2
+        strh r3, [r0, #ACTRT_TYPE]
+
+        add r4, r4, #1
+
+        strb r2, [r0, #ACTRT_IDX]
+
+        ldrb r3, [r4], #1            @ flags
+        and r3, r3, #0b00110000            @ world presence
+        mov r3, r3, lsr #3
+        orr r3, r3, #ACTRT_FLAG_ALIVE
+        strb r3, [r0, #ACTRT_FLAGS]
+
+        ldrh r3, [r4], #2
+        strh r3, [r0, #ACTRT_X]
+        ldrh r3, [r4], #2
+        strh r3, [r0, #ACTRT_Y]
+
+        <<Compute initial bounding box>>
+
+        @ read state.
+        ldrb r3, [r4], #1
+        mov r1, r3
+        cmp r3, #0
+        beq 1f
+        stmfd sp!, {r0-r2}
+        mov r0, r3
+        bl ewram_alloc
+        mov r3, r0
+        ldmfd sp!, {r0-r2}
+1:      str r3, [r0, #ACTRT_STATE]
+
+        cmp r1, #0
+        beq 3f
+        stmfd sp!, {r0,r2}
+2:      ldrb r0, [r4], #1
+        strb r0, [r3], #1
+        subs r1, r1, #1
+        bne 2b
+        ldmfd sp!, {r0,r2}
+3:
+
+@ Computing the initial bounding box really should be done, although
+it's not clear that this is exactly where it should occur.  One of the
+big complications is that the actor is not necessarily on screen at this
+point, so we would have to parse size information from the sprite files.
+See also the offset module.
+
+Perhaps I will add some fallback code to the [[update_parts]] routine
+that does basically this, in the case that the actor's offset handler is
+$\Lambda$.
+
+<<Compute initial bounding box>>= 
+        mov r3, #0
+        str r3, [r0, #ACTRT_CLIPXOFF]
+        mov r3, #16
+        strb r3, [r0, #ACTRT_CLIPW]
+        mov r3, #16
+        strb r3, [r0, #ACTRT_CLIPH]
+
+@
+
+<<Load archetype information>>= 
+        ldr r1, =archetype_table
+        ldrh r2, [r0, #ACTRT_TYPE]
+        mov r2, r2, lsl #1
+        ldrh r3, [r1, r2]
+        add r1, r1, r3, lsl #2
+
+        <<Setup actor's initial health>>
+        <<Allocate parts array>>
+        <<Fill out the parts array>>
+
+@ We load the actor's base health from their archetype entry.  This is
+based on the current difficulty level, if they have a health meter.  If
+they are phasic they start balanced anyway, so it doesn't matter.
+
+<<Setup actor's initial health>>= 
+        ldrb r2, [r1, #13]
+        tst r2, #1<<7
+        movne r2, #0
+        bne 1f
+        ldr r2, =difficulty_level
+        ldrb r2, [r2]
+        add r2, r2, #4
+        ldrb r2, [r1, r2]
+1:      strb r2, [r0, #ACTRT_HEALTH]
+
+@ We allocate enough space in EWRAM for each part handle.
+
+<<Allocate parts array>>= 
+        add r1, r1, #7
+        ldrb r2, [r1], #1
+        strb r2, [r0, #ACTRT_NPARTS]
+        stmfd sp!, {r0-r2}
+        mov r0, r2, lsl #2
+        bl ewram_alloc
+        mov r3, r0
+        ldmfd sp!, {r0-r2}
+        str r3, [r0, #ACTRT_PARTSPTR]
+
+@ This sets up each part, filling it with an inactive sprite, and
+otherwise using the data from the archetype.  There seems to be some
+degree of confusion about the assignment of various bits and the size of
+the information in the archetype.  Hence, any code using these bits
+should be checked carefully.
+
+This code is a little tricky.  We are reading the byte from the
+archetype which contains (in its top bit) the collision flag, and below
+that, the part's global palette index.  The shift and or that follow
+ensure that {\bf r3} will have the form [[0x00000Xff]], where {\tt X}
+denotes the collision flag.  Thus we then perform the store which sets
+the whole part correctly, and moves to the next one.
+
+<<Fill out the parts array>>= 
+        mov r0, r3
+6:      add r1, r1, #4
+        ldrb r3, [r1], #4
+        mov r3, r3, lsl #1            @ collidable bit
+        orr r3, r3, #0xff
+        str r3, [r0], #4
+        subs r2, r2, #1
+        bne 6b
+
+@ \section{{\tt actor\_remove}}
+
+[[actor_remove]] -- Takes the byte handle in {\bf r0}, removes the actor
+and any active sprites associated with it.  Deallocates state and parts.
+
+<<ARM Routines in ROM>>= 
+        .global actor_remove
+actor_remove:
+        stmfd sp!, {r4,lr}
+        @ assert(r0 < MAXACTORS)
+#ifndef NDEBUG
+        cmp r0, #MAXACTORS
+        ldrge r0, =msg_idxoob
+        bge abort
+#endif
+        ldr r3, =alloc_map
+        mov r2, r0, lsr #5
+        add r3, r3, r2, lsl #2
+        ldr r1, [r3]
+        mov r4, r0
+        and r0, r0, #31
+        mov r2, #1
+        mov r0, r2, lsl r0
+        tst r1, r0
+        @ assert((alloc_map[r0 >> 5] & (1 << (r0 & 31))) <> 0)
+#ifndef NDEBUG
+        ldreq r0, =msg_notset
+        beq abort
+#endif
+        bic r1, r1, r0
+        str r1, [r3]
+
+        @ Free parts, state, sprites.
+        ldr r1, =actor_rt
+        add r4, r1, r4, lsl #5
+        ldr r0, [r4, #ACTRT_STATE]
+        cmp r0, #0
+        beq 1f
+        bl ewram_free
+1:      ldr r0, [r4, #ACTRT_PARTSPTR]
+        cmp r0, #0
+        beq 4f
+        @ Remove any active sprites, first
+        ldrb r2, [r4, #ACTRT_NPARTS]
+ @ {
+2:      ldrb r3, [r0], #4
+        cmp r3, #0xff
+        beq 3f
+        stmfd sp!, {r0,r2}
+        ldr r0, =actor_sprite_lut
+        mov r1, #0xff
+        strb r1, [r0, r3]
+        mov r0, r3
+        bl sprite_remove
+        ldmfd sp!, {r0,r2}
+
+3:      subs r2, r2, #1
+        bne 2b
+ @ }
+
+        ldr r0, [r4, #ACTRT_PARTSPTR]
+        bl ewram_free
+
+4:      ldmfd sp!, {r4,lr}
+        bx lr
+
+@ \section{{\tt actor\_update}}
+
+This routine is perhaps the biggest time sink in the in-game loop, as it
+is responsible for marshaling actor clipping, physics, and handler
+updates.
+
+<<ARM Routines in ROM>>= 
+        .global actor_update
+actor_update:
+        stmfd sp!, {r4-r8,lr}
+
+        @ walk the allocation bitmap
+        ldr r4, =alloc_map
+        mov r5, #BITMAP_SIZE
+        mov r6, #0
+ @ {
+0:      ldr r7, [r4], #4
+ @   {
+1:      tst r7, #1
+        beq 5f
+
+        ldr r8, =actor_rt
+        add r8, r8, r6, lsl #5
+
+        <<Clip to active region>>
+        <<Update physics for active actors>>
+        <<Clip to the screen>>
+        <<Deal with on-screen actor>>
+2:      <<Deal with active actor>>
+3:      <<Deal with off-screen actor>>
+
+4:      @ update parts
+        mov r0, r8
+        bl update_parts
+
+5:      add r6, r6, #1
+        movs r7, r7, lsr #1
+        bne 1b
+ @   }
+        add r6, r6, #31
+        bic r6, r6, #31
+        subs r5, r5, #1
+        bne 0b
+ @ }
+
+        ldmfd sp!, {r4-r8,lr}
+        bx lr
+
+@ We only really update things within the active window, everything else
+cheats.
+
+<<Clip to active region>>= 
+        ldr r1, =camera_x
+        ldrh r1, [r1]
+        ldrh r3, [r8, #ACTRT_X]
+        sub r1, r1, #ACTIVE_FUDGE_X
+        cmp r3, r1
+        blt 3f
+        add r1, r1, #SCREEN_WIDTH+ACTIVE_FUDGE_X*2
+        cmp r3, r1
+        bge 3f
+
+        ldr r1, =camera_y
+        ldrh r1, [r1]
+        ldrh r3, [r8, #ACTRT_Y]
+        sub r1, r1, #ACTIVE_FUDGE_Y
+        cmp r3, r1
+        blt 3f
+        add r1, r1, #SCREEN_HEIGHT+ACTIVE_FUDGE_Y*2
+        cmp r3, r1
+        bge 3f
+
+@
+
+<<Clip to the screen>>= 
+        @ Load camera offsets.
+        ldr r1, =camera_x
+        ldrh r1, [r1]
+        ldrh r3, [r8, #ACTRT_X]
+        sub r1, r1, #CLIP_FUDGE_X
+        cmp r3, r1
+        blt 2f
+        add r1, r1, #SCREEN_WIDTH+CLIP_FUDGE_X*2
+        cmp r3, r1
+        bge 2f
+
+        ldr r1, =camera_y
+        ldrh r1, [r1]
+        ldrh r3, [r8, #ACTRT_Y]
+        sub r1, r1, #CLIP_FUDGE_X
+        cmp r3, r1
+        blt 2f
+        add r1, r1, #SCREEN_HEIGHT+CLIP_FUDGE_Y*2
+        cmp r3, r1
+        bge 2f
+
+        @ check if the actor is in the right world.
+        ldr r1, =cur_world
+        ldrb r1, [r1]
+        ldrb r3, [r8, #ACTRT_FLAGS]
+        cmp r1, #0
+        tsteq r3, #ACTRT_FLAG_WORLD_ALPHA
+        beq 2f
+        cmp r1, #1
+        tsteq r3, #ACTRT_FLAG_WORLD_BETA
+        beq 2f
+
+@ Physics needs to know which segment tree to use, depending on what
+world the actor is in.  Note that this fails to deal consistently with
+dual-phase actors, which are a weird case anyway.
+
+<<Update physics for active actors>>= 
+        ldrb r3, [r8, #ACTRT_FLAGS]
+        tst r3, #ACTRT_FLAG_WORLD_ALPHA
+        ldrne r1, =alpha_segtree
+        ldreq r1, =beta_segtree
+        ldr r1, [r1]
+        mov r0, r8
+        bl physics_individual
+
+@ If we got here, it's probably inside the visible area.  If the actor
+doesn't have active sprites, we have to add them.  We then update
+physics on the actor as appropriate.
+
+<<Deal with on-screen actor>>= 
+        mov r0, r8
+        bl add_parts
+        bal 4f
+
+@ This is the case that the actor is within the update window, but not
+visible.  We still update their physics, but we also remove the actors
+parts.  We don't just fall-through to the off-screen actor, because we
+want to have our parts updated.
+
+<<Deal with active actor>>= 
+        mov r0, r8
+        bl remove_parts
+        bal 4f
+
+@ Otherwise, the actor is off-screen.  If it has active sprites, we must remove them.
+XXX spline follower physics faking should be here, too.
+
+<<Deal with off-screen actor>>= 
+        mov r0, r8
+        bl remove_parts
+        bal 5f
+
+@ \section{{\tt add\_parts}}
+
+[[add_parts]] --- Make all the parts of this actor visible.  Takes the
+actor pointer in {\bf r0}.  It's worth noting that this is global,
+because it is used by some external routines, in an admittedly hacklike
+fashion.  It would be nice to remove external calls to this, but
+certainly not a necessity.
+
+<<ARM Routines in ROM>>= 
+        .global add_parts
+add_parts:
+        stmfd sp!, {r4-r7,lr}
+
+        mov r4, r0
+        <<add parts: Seek into archetype>>
+        @ Enter parts array.
+2:      add r5, r5, #8
+
+        ldr r6, [r4, #ACTRT_PARTSPTR]
+        ldrb r7, [r4, #ACTRT_NPARTS]
+ @   {
+3:      ldrb r2, [r6]
+        cmp r2, #0xff                    @ only add inactive sprites.
+        bne 4f
+
+        <<Add this part>>
+
+        ldrb r2, [r5, #4]
+        tst r2, #1<<7                    @ collidable bit
+        beq 4f
+
+        <<Register this part for collision>>
+
+4:      add r6, r6, #4
+        add r5, r5, #8
+        subs r7, r7, #1
+        bne 3b
+ @   }
+
+        ldmfd sp!, {r4-r7,lr}
+        bx lr
+
+@
+
+<<add parts: Seek into archetype>>= 
+        ldr r5, =archetype_table
+        ldrh r2, [r4, #ACTRT_TYPE]
+        mov r2, r2, lsl #1
+        ldrh r3, [r5, r2]
+        add r5, r5, r3, lsl #2
+
+@ This adds the sprite for this part, and registers it in the
+actor--sprite look-up table.  I'm certain that this can be done without
+all this register ridiculousness, but I don't have time to improve it at
+the moment.
+
+<<Add this part>>= 
+        ldr r0, [r5]
+        ldrb r1, [r5, #4]
+        and r1, r1, #0x7f
+        bl sprite_add
+
+        mov r2, r0
+        ldr r0, =actor_sprite_lut
+        ldrb r1, [r4, #ACTRT_IDX]
+        strb r1, [r0, r2]
+        strb r2, [r6]
+
+@
+
+<<Register this part for collision>>= 
+        ldrb r0, [r6]
+        add r2, r5, r7, lsl #3
+        ldr r1, [r2, #12]
+        bl collision_add
+
+@ \section{{\tt remove\_parts}}
+
+[[remove_parts]] --- Get rid of each sprite used for this actor.
+Takes the actor pointer in {\bf r0}.
+
+<<ARM Routines in ROM>>= 
+        .global remove_parts
+remove_parts:
+        stmfd sp!, {lr}
+
+        ldrb r1, [r0, #ACTRT_NPARTS]
+        ldr r3, [r0, #ACTRT_PARTSPTR]
+ @   {
+0:      ldrb r2, [r3]
+        cmp r2, #0xff                    @ ignore the sprite if inactive.
+        beq 1f
+
+        stmfd sp!, {r1-r3}
+        ldr r0, =actor_sprite_lut
+        mov r1, #0xff
+        strb r1, [r0, r2]
+        mov r0, r2
+        bl sprite_remove
+        ldmfd sp!, {r1-r3}
+        mov r2, #0xff
+        strb r2, [r3]
+
+1:      add r3, r3, #4
+        subs r1, r1, #1
+        bne 0b
+ @   }
+
+        ldmfd sp!, {lr}
+        bx lr
+
+@ \section{{\tt update\_parts}}
+
+[[update_parts]] --- Update an individual actor.  Takes the actor
+pointer in {\bf r0}.  Unlike its add and remove siblings, it is not
+global, and should never have any need to be.
+
+<<ARM Routines in ROM>>= 
+update_parts:
+        stmfd sp!, {r4-r8,lr}
+
+        mov r4, r0
+
+        <<Seek into archetype table>>
+        <<Call AI update function>>
+3:      <<Call offset update function>>
+
+4:      ldrb r7, [r4, #ACTRT_NPARTS]
+        ldr r6, [r4, #ACTRT_PARTSPTR]
+        sub r5, r5, r7, lsl #3
+ @   {
+5:      ldrb r8, [r6]
+        cmp r8, #0xff                    @ ignore inactive sprites.
+        beq 6f
+
+        <<Update this sprite's position>>
+
+        ldrb r1, [r4, #ACTRT_FLAGS]
+        and r1, r1, #ACTRT_FLAG_FACING
+        mov r0, r8
+        bl sprite_sethvflip
+
+6:      add r6, r6, #4
+        add r5, r5, #8
+        subs r7, r7, #1
+        bne 5b
+ @   }
+
+        ldmfd sp!, {r4-r8,lr}
+        bx lr
+
+@ We seek into the actor's archetype, first updating their balance if
+they're phasic, then going to the point where their handlers should be.
+
+<<Seek into archetype table>>= 
+        ldr r5, =archetype_table
+        ldrh r2, [r4, #ACTRT_TYPE]
+        mov r2, r2, lsl #1
+        ldrh r2, [r5, r2]
+        add r5, r5, r2, lsl #2
+
+        <<Update balance>>
+
+1:      add r5, r5, #7
+        ldrb r1, [r5], #1
+        <<Check nparts consistency>>
+        add r5, r5, r1, lsl #3
+
+@ Here we are checking to make sure that the actor's number of parts is
+the same as registered in its archetype.  While our solution if they
+differ is bad (silently setting the actor's value without doing anything
+else), the alternative is worse.  The inconsistency between the two
+values would cause seriously bad behavior below.
+
+<<Check nparts consistency>>= 
+        ldrb r2, [r4, #ACTRT_NPARTS]
+        cmp r1, r2
+        strneb r1, [r4, #ACTRT_NPARTS]
+
+@ We check if the actor is phasic, and if so, we update their balance,
+if the counter is at an appropriate setting.
+
+<<Update balance>>= 
+        ldrb r1, [r5, #13]
+        tst r1, #1<<7
+        beq 1f
+
+        ldr r1, =stability_counter
+        ldrh r1, [r1]
+        cmp r1, #0
+        bne 1f
+
+        ldrb r1, [r4, #ACTRT_FLAGS]
+        ldrsb r2, [r4, #ACTRT_HEALTH]
+        tst r1, #ACTRT_FLAG_WORLD_ALPHA
+        subne r2, r2, #1
+        addeq r2, r2, #1
+        strb r2, [r4, #ACTRT_HEALTH]
+
+@ We call the appropriate handler function for this actor depending on
+whether we're human or not.  This is determined by the contents of
+[[hero_handle]], as we only allow one hero per GBA.
+
+<<Call AI update function>>= 
+        ldr r2, =hero_handle
+        ldrb r2, [r2]
+        ldrb r3, [r4, #ACTRT_IDX]
+        cmp r3, r2
+        ldreq r3, [r5, #8]
+        ldrne r3, [r5, #4]
+        cmp r3, #0
+        beq 3f
+
+        mov r0, r4
+        mov lr, pc
+        mov pc, r3
+
+@ Here, if the actor has no offset update function, we give them a
+courtesy update based on their first part (if it exists).  This crude
+offset update function is hacked from the offsets module, beware.
+
+<<Call offset update function>>= 
+        ldr r3, [r5]
+        cmp r3, #0
+        beq 3f
+
+        mov r0, r4
+        mov lr, pc
+        mov pc, r3
+        bal 4f
+
+3:      ldr r3, [r4, #ACTRT_PARTSPTR]
+        ldrb r1, [r3]
+        cmp r1, #0xff
+        beq 4f
+
+        mov r3, #0                    @ \ wipes all four clip rectangle
+        str r3, [r4, #ACTRT_CLIPXOFF] @ / variables
+        mov r0, r1
+        bl sprite_getdimensions
+        mov r3, r0
+        strb r3, [r4, #ACTRT_CLIPW]
+        strb r1, [r4, #ACTRT_CLIPH]
+
+@ Note the use of the camera deltas, to prevent stupid space warping
+problems when scrolling is inconsistent with actor positioning.
+
+<<Update this sprite's position>>= 
+        ldrh r1, [r4, #ACTRT_X]
+        ldrsb r3, [r6, #2]            @ offset x
+        add r1, r1, r3
+        ldrh r2, [r4, #ACTRT_Y]
+        ldrsb r3, [r6, #3]            @ offset y
+        add r2, r2, r3
+
+        ldr r3, =camera_x
+        ldrh r3, [r3]
+        sub r1, r1, r3
+        ldr r3, =camera_deltax
+        ldrsb r3, [r3]
+        sub r1, r1, r3
+
+        ldr r3, =camera_y
+        ldrh r3, [r3]
+        sub r2, r2, r3
+        ldr r3, =camera_deltay
+        ldrsb r3, [r3]
+        sub r2, r2, r3
+
+        ldr r3, =sprite_rt
+        add r3, r3, r8, lsl #4
+        strh r1, [r3, #SPRT_X]
+        strb r2, [r3, #SPRT_Y]
+
+@ \section{{\tt actor\_camerafollow}}
+
+[[actor_camerafollow]] -- Updates the camera around an actor.  Takes the
+actor handle in {\bf r0}.
+
+The fudge constants affect how far the actor has to move outside of the
+center of the camera rectangle to cause a scrolling update.  Makes for
+much smoother looking scrolling when the actor is frequently changing
+directions, jumping, et cetera.
+
+<<Constants>>= 
+.equ CAMERA_FUDGEX, 24
+.equ CAMERA_FUDGEY, 24
+
+<<ARM Routines in ROM>>= 
+        .global actor_camerafollow
+actor_camerafollow:
+        stmfd sp!, {r4-r5, lr}
+
+        ldr r1, =actor_rt
+        add r0, r1, r0, lsl #5
+
+        mov r5, #0
+
+        ldr r1, =cur_world
+        ldr r2, =desired_world
+        ldrb r1, [r1]
+        ldrb r2, [r2]
+        cmp r1, r2
+
+        @ Load camera offsets.
+        ldr r1, =camera_x
+        ldrh r1, [r1]
+        ldrh r2, [r0, #ACTRT_X]
+        subs r2, r2, #120
+        movlt r2, #0
+        subs r2, r2, r1
+        mov r3, r2
+        addlt r2, r2, #CAMERA_FUDGEX
+        subgt r2, r2, #CAMERA_FUDGEX
+        rsblt r3, r3, #0
+        cmp r3, #CAMERA_FUDGEX
+        blt 1f
+        ldr r3, =camera_deltax
+        strb r2, [r3]
+
+        @ hard-update camera in this case
+        mov r1, #0x7f
+        cmp r2, r1
+        orrgt r5, r5, #1
+        mvn r1, r1
+        cmp r2, r1
+        orrlt r5, r5, #1
+
+1:      ldr r1, =camera_y
+        ldrh r1, [r1]
+        ldrh r2, [r0, #ACTRT_Y]
+        subs r2, r2, #80
+        movlt r2, #0
+        subs r2, r2, r1
+        mov r3, r2
+        addlt r2, r2, #CAMERA_FUDGEY
+        subgt r2, r2, #CAMERA_FUDGEY
+        rsblt r3, r3, #0
+        cmp r3, #CAMERA_FUDGEY
+        blt 1f
+        ldr r3, =camera_deltay
+        strb r2, [r3]
+
+        @ hard-update camera in this case
+        mov r1, #0x7f
+        cmp r2, r1
+        orrgt r5, r5, #1
+        mvn r1, r1
+        cmp r2, r1
+        orrlt r5, r5, #1
+
+1:      cmp r5, #0
+        beq 0f
+
+        ldrh r2, [r0, #ACTRT_X]
+        subs r2, r2, #120
+        movlt r2, #0
+        ldrh r1, [r0, #ACTRT_Y]
+        subs r1, r1, #80
+        movlt r1, #0
+        mov r0, r2
+        stmfd sp!, {r0,r1}
+        mov r2, #0
+        bl layer_jumpcamera
+        ldmfd sp!, {r0,r1}
+        mov r2, #1
+        bl layer_jumpcamera
+
+0:      ldmfd sp!, {r4-r5, pc}
+
+@ \section{{\tt actor\_setcamerafocus}}
+
+[[actor_setcamerafocus]] --- Jumps the camera focus to center on the
+specified actor.
+
+<<ARM Routines in ROM>>= 
+        .global actor_setcamerafocus
+actor_setcamerafocus:
+        stmfd sp!, {lr}
+
+        ldr r1, =actor_rt
+        add r0, r1, r0, lsl #5
+
+        ldr r1, =camera_x
+        ldrh r2, [r0, #ACTRT_X]
+        subs r2, r2, #SCREEN_WIDTH/2
+        movlt r2, #0
+        strh r2, [r1]
+
+        ldr r1, =camera_y
+        ldrh r2, [r0, #ACTRT_Y]
+        subs r2, r2, #SCREEN_HEIGHT/2
+        movlt r2, #0
+        strh r2, [r1]
+
+        ldmfd sp!, {pc}
+
+@ These are the various debugging messages which get output if something
+goes horribly wrong.
+
+<<Read-only data>>= 
+msg_nofreeactors: .string "actor: alloc_map full!"
+msg_idxoob: .string "actor: idx out of bounds"
+msg_notset: .string "actor: bit not set!"
+msg_overscroll: .string "actor: scrolled to death"
+
+@
+
+% EOF actor.nws

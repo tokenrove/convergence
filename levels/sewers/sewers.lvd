@@ -1,0 +1,60 @@
+
+#
+# level description file -- sewers
+# Convergence
+# $Id: sewers.lvd,v 1.5 2002/12/09 17:41:26 retsyn Exp $
+#
+
+name sewers
+mode 0 
+tilesets 2
+alpha_palette levels/sewers/alpha_bg.pal
+beta_palette levels/sewers/beta_bg.pal
+line_bank levels/sewers/sewers.lnd
+alpha_segtree levels/sewers/alpha_sp.tree
+beta_segtree levels/sewers/beta_sp.tree
+
+###
+# Tilesets
+#
+
+tileset alpha_bg { bank 1 file levels/sewers/alpha_bg.tiles }
+tileset alpha_fg { bank 2 file levels/sewers/alpha_fg.tiles }
+tileset beta_bg { bank 1 file levels/sewers/beta_bg.tiles }
+tileset beta_fg { bank 2 file levels/sewers/beta_fg.tiles }
+
+
+###
+# Layers
+#
+
+layer alpha_fg { width 256 height 175  tile_bank 2  priority 2
+    map_bank 0  scroll_speed 128  source levels/sewers/alpha_fg.map }
+layer alpha_bg { width 64  height 64   tile_bank 1  priority 3
+    map_bank 1  scroll_speed 80   source levels/sewers/alpha_bg.map loop both }
+no_layer
+no_layer
+
+layer beta_fg { width 256 height 175  tile_bank 2  priority 2
+    map_bank 2  scroll_speed 128  source levels/sewers/beta_fg.map }
+layer beta_bg { width 64  height 64   tile_bank 1  priority 3
+    map_bank 3  scroll_speed 80   source levels/sewers/beta_bg.map loop both }
+no_layer
+no_layer
+
+
+###
+# Actors
+#
+
+actor { type ARCH_ED_BEAST  alpha beta  easy normal hard  blank_state 0  x 448 y 944 }
+
+actor { type ARCH_GLENN  beta  easy normal hard  blank_state 0  x 776 y 400 }
+
+actor_cluster { type ARCH_GREEN_RIPPER  beta  normal hard  blank_state 0
+} [ x 808 y 72 ; x 848 y 72 ; x 808 y 128 ]
+
+
+
+# EOF sewers.lvd
+

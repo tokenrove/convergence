@@ -1,0 +1,15 @@
+\contentsline {section}{\numberline {1}Notes on the implementation of physics}{3}
+\contentsline {section}{\numberline {2}Skeletons}{4}
+\contentsline {subsection}{\numberline {2.1}Module-wide Variables}{4}
+\contentsline {subsection}{\numberline {2.2}Undead Routines}{5}
+\contentsline {section}{\numberline {3}Filling the seglist}{7}
+\contentsline {section}{\numberline {4}Physics on a solitary rigid body}{11}
+\contentsline {subsection}{\numberline {4.1}Integration of velocity into position}{18}
+\contentsline {subsection}{\numberline {4.2}Integration of acceleration into velocity}{22}
+\contentsline {subsection}{\numberline {4.3}Miscellaneous}{22}
+\contentsline {section}{\numberline {5}Collision!}{24}
+\contentsline {section}{\numberline {6}Collision Response}{31}
+\contentsline {section}{\numberline {7}Angle of slope}{33}
+\contentsline {section}{\numberline {8}Safety Scan}{35}
+\contentsline {subsection}{\numberline {8.1}Intersection}{36}
+\contentsline {subsection}{\numberline {8.2}Inclusion}{38}

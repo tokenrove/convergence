@@ -1,0 +1,1002 @@
+% layer -- layers panning around
+% Convergence
+% Copyright Pureplay Games / 2002
+%
+% $Id: layer.nws,v 1.11 2002/12/07 18:03:44 tek Exp $
+
+Runtime level information: camera info.
+
+<<IWRAM Variables>>= 
+    .global camera_x, camera_y, camera_deltax, camera_deltay, cur_world
+    .global desired_world, alpha_segtree, beta_segtree
+camera_x: .skip 2
+camera_y: .skip 2
+
+camera_deltax: .skip 1
+camera_deltay: .skip 1
+cur_world:     .skip 1
+desired_world: .skip 1
+
+alpha_segtree: .skip 4
+beta_segtree: .skip 4
+
+bg_mirrors: .skip 8*4
+@
+
+Pointer to level in ROM, to maps, and to uncompressed tiles.
+
+<<IWRAM Variables>>= 
+level_ptr: .skip 4
+map_ptrs: .skip 8*4
+alpha_tiles: .skip 8*4
+beta_tiles: .skip 8*4
+@ 
+
+<<Files to include>>= 
+	.include "gba.inc"
+	.include "dma.inc"
+@
+\section{{\tt layer\_initialize}}
+
+<<ARM Routines in ROM>>= 
+	.global layer_initialize
+layer_initialize:
+	stmfd sp!, {r4-r10,lr}
+
+	mov r4, r0
+
+	ldr r0, =level_ptr
+	str r4, [r0]
+
+	@ Set our graphics mode.
+	ldrh r5, [r4], #2
+	mov r0, r5, lsr #6
+	and r0, r0, #3
+	bl gfx_set_mode
+
+	add r4, r4, #2
+
+	@ skip palettes
+	add r4, r4, #1024
+
+        <<Seek past tilesets>>
+        <<Initialize camera variables>>
+        <<Reset scroll values>>
+        <<Setup initial layer pointers>>
+        <<Load physics information>>
+
+	mov r0, r4		    @ return actor portion of level data
+
+	ldmfd sp!, {r4-r10,lr}
+	bx lr
+
+@
+
+<<Seek past tilesets>>= 
+	mov r0, r5, lsr #4
+	and r0, r0, #3
+        add r4, r4, r0, lsl #3
+
+@
+<<Initialize camera variables>>= 
+	ldr r1, =camera_x
+	mov r2, #0
+	strh r2, [r1], #2
+	ldr r1, =camera_y
+	strh r2, [r1]
+	ldr r1, =camera_deltax
+	strb r2, [r1]
+	ldr r1, =camera_deltay
+	strb r2, [r1]
+	ldr r1, =cur_world
+	strb r2, [r1]
+	ldr r1, =desired_world
+	strb r2, [r1]
+
+@
+<<Reset scroll values>>= 
+	ldr r0, =REG_BG0SCX
+	mov r1, #0
+	str r1, [r0], #4
+	str r1, [r0], #4	    @ BG1SCX
+	str r1, [r0], #4	    @ BG2SCX
+	str r1, [r0], #4	    @ BG3SCX
+        ldr r0, =bg_mirrors
+        str r1, [r0], #4
+        str r1, [r0], #4
+        str r1, [r0], #4
+        str r1, [r0], #4
+        str r1, [r0], #4
+        str r1, [r0], #4
+        str r1, [r0], #4
+        str r1, [r0], #4
+
+@ What will happen here soon: All the map data will be accessed through a
+single pointer, instead of being split between a pointer and values as
+it is here.  We'll grab that pointer, store it in the map pointers, and
+then dereference it.  We'll then read the width and height, and we'll
+set up the compression pointers for each line of tiles in it.  This is
+mostly true, except for the compression pointer part.
+
+<<Setup initial layer pointers>>= 
+	ldr r8, =map_ptrs
+	@ for each layer in this mode...
+	mov r9, r5, lsr #6
+	and r9, r9, #3
+	rsb r9, r9, #4
+	mov r9, r9, lsl #1	    @ x2 for beta layers
+ @ {
+1:      ldr r6, [r4], #4
+        str r6, [r8], #4
+	cmp r6, #0
+	beq 3f
+
+	@ Enable this layer
+	rsb r0, r9, #8
+        and r0, r0, #3
+	mov r1, #1
+	mov r0, r1, lsl r0
+	@ XXX add mode&2 to idx
+	bl gfx_enable_bg
+
+        ldrh r0, [r6], #2	    @ width
+	ldrh r1, [r6], #2	    @ height
+
+	ldrb r2, [r6], #4	    @ layer flags.
+
+        @ setup initial pointers
+
+3:	subs r9, r9, #1
+	bne 1b
+ @ }
+
+@
+<<Load physics information>>= 
+	mov r0, r4
+	bl physics_add_linebank
+	ldrh r0, [r4]
+	add r4, r4, r0
+
+	ldr r0, [r4], #4
+	ldr r1, =alpha_segtree
+	str r4, [r1]
+	add r4, r4, r0
+
+	ldr r0, [r4], #4
+	ldr r1, =beta_segtree
+	str r4, [r1]
+	add r4, r4, r0
+
+@
+\section{{\tt camera\_update}}
+
+<<ARM Routines in IWRAM>>= 
+	.global camera_update
+camera_update:
+	stmfd sp!, {r4,lr}
+
+	@ Update world selected.
+	ldr r0, =desired_world
+	ldr r1, =cur_world
+	ldrb r2, [r0]
+	ldrb r3, [r1]
+	cmp r2, r3
+	beq 1f
+
+	mov r0, r2
+        bl layer_set_world
+
+	@ Update camera position.
+1:	ldr r0, =camera_deltax
+	ldrsb r1, [r0]
+	ldr r0, =camera_deltay
+	ldrsb r2, [r0]
+	cmp r1, #0
+	cmpeq r2, #0
+	beq 2f
+
+        mov r3, #8
+        cmp r1, r3
+        rsb r3, r3, #0
+        cmplt r3, r1
+        bgt 1f
+        mov r3, #8
+        cmp r2, r3
+        rsb r3, r3, #0
+        cmplt r3, r2
+        bgt 1f
+
+        mov r0, r1
+        mov r1, r2
+        bl layer_deltascroll_iw
+        bal 2f
+
+1:	ldr r0, =camera_x
+	ldrh r0, [r0]
+	add r0, r0, r1
+	ldr r1, =camera_y
+	ldrh r1, [r1]
+	add r1, r1, r2
+	bl layer_jumpcamera_iw
+
+2:	mov r1, #0
+	ldr r0, =camera_deltax
+	strb r1, [r0]
+	ldr r0, =camera_deltay
+	strb r1, [r0]
+
+	ldmfd sp!, {r4,pc}
+
+	.pool
+@
+\section{{\tt layer\_set\_world}}
+
+Changes the active world by copying in necessary tilesets and rewriting
+the background registers as appropriate.
+
+<<ARM Routines in IWRAM>>= 
+	.global layer_set_world
+layer_set_world:
+	stmfd sp!, {r4-r10,lr}
+
+	mov r4, r0
+
+	ldr r5, =level_ptr
+	ldr r5, [r5]
+	ldrh r6, [r5], #2
+	ldrh r10, [r5], #2
+
+	@ Load the current world's palette.
+	mov r0, r5
+	cmp r4, #0
+	addne r0, r0, #512
+        ldr r7, =gfx_set_bg_palette
+        mov lr, pc
+        mov pc, r7
+	add r5, r5, #512
+	add r5, r5, #512
+
+	@
+	@ Copy the appropriate tilesets into VRAM.
+	@
+
+	cmp r4, #0		    @ skip the alpha tilesets if the desired
+	beq 1f			    @ world is beta.
+	mov r0, r6, lsr #4
+	and r0, r0, #0b11
+        add r5, r5, r0, lsl #2
+
+1:	mov r7, r6, lsr #4
+	and r7, r7, #0b11
+ @ {
+2:	ldr r1, [r5], #4
+        ldrh r2, [r1], #4
+
+	@ Find the tileset's desired offset into VRAM.
+	mov r0, r2		    @ \ bank * 16384
+	and r0, r0, #0xc000	    @ /
+	add r0, r0, #vram_base
+	tst r2, #0x1000
+	addne r0, r0, #0x2000
+
+	@ Determine how many bytes to copy.
+	bic r3, r2, #0xfc00
+	tst r2, #0x2000
+	moveq r2, r3, lsl #5
+	movne r2, r3, lsl #6
+
+	@ DMA the motherfucker.
+	dma_copy32_m
+
+	subs r7, r7, #1
+	bne 2b
+ @ }
+
+	@ setup each layer.
+	mov r6, r6, lsr #6
+	and r6, r6, #0b11
+	rsb r3, r6, #4
+	and r6, r6, #2
+	ldr r5, =map_ptrs
+	cmp r4, #0
+	addne r5, r5, r3, lsl #2
+ @ {
+3:	ldr r1, [r5], #4
+        cmp r1, #0
+        add r1, r1, #4
+	beq 4f
+
+	ldrb r1, [r1]
+	mov r0, r1, lsr #4
+	and r1, r1, #0b111
+	orr r1, r0, r1, lsl #8
+	ldr r0, =REG_BG0
+	add r0, r0, r6, lsl #1
+	strh r1, [r0]
+
+4:	add r6, r6, #1
+	subs r3, r3, #1
+	bne 3b
+ @ }
+
+	ldr r0, =cur_world
+	strb r4, [r0]
+
+	ldmfd sp!, {r4-r10,lr}
+	bx lr
+@
+
+
+[[layer_jumpcamera(int x, int y, int world)]] --- Sets the camera to the
+given position.
+
+Note: to add looping backgrounds to this, make the source loop in the
+copy loop.
+
+Here's the stub...
+
+<<ARM Routines in ROM>>= 
+	.global layer_jumpcamera
+layer_jumpcamera:
+	ldr r3, =layer_jumpcamera_iw
+	mov pc, r3
+	bx lr			    @ note, this never gets hit.
+@ ... and the real thing...
+
+<<Constants>>= 
+.equ TMP_CX, -44
+.equ TMP_CY, -42
+@
+
+<<ARM Routines in IWRAM>>= 
+	.global layer_jumpcamera_iw
+layer_jumpcamera_iw:
+        mov ip, sp
+	stmfd sp!, {r4-r10,fp,ip,lr}
+        mov fp, ip
+        sub sp, sp, #4
+
+	@ adjust camera position.
+	ldr r2, =camera_x
+	strh r0, [r2]
+
+	ldr r2, =camera_y
+	strh r1, [r2]
+
+	@ get mode number.
+	ldr r2, =level_ptr
+	ldr r2, [r2]
+	ldrh r2, [r2]
+	mov r2, r2, lsr #6
+	and r2, r2, #0b11
+
+	rsb r4, r2, #4		    @ nlayers = 4 - mode
+	and r2, r2, #2		    @ bgidx = mode & 2
+        mov r4, r4, lsl #1
+	ldr r5, =map_ptrs
+
+	@ For each layer...
+0:	ldr r6, [r5], #4
+        cmp r6, #0
+        beq 9f
+
+        <<jump: Update camera by scroll-speed>>
+        <<jump: Update background scroll registers>>
+        stmfd sp!, {r2,r4}
+        <<jump: Copy in tile lines>>
+        ldmfd sp!, {r2,r4}
+
+9:	add r2, r2, #1
+	subs r4, r4, #1
+	bne 0b
+
+	ldmea fp, {r4-r10,fp,sp,pc}
+
+@ Jumping the camera involves iterating through each layer, updating
+their background scroll registers to $\frac{c \cdot s}{128}$.  If the
+32x22 loop flag is set at this point, we skip to the next layer.  We
+work on layers in both $\alpha$ and $\beta$ worlds, but we do not update
+the background scroll registers in the world which isn't active.
+
+<<jump: Update camera by scroll-speed>>= 
+	ldr r3, =camera_x
+	ldrh r0, [r3]
+	ldr r3, =camera_y
+	ldrh r1, [r3]
+
+        ldrb r7, [r6, #5]
+        mul r3, r0, r7
+        mov r8, r3, asr #7
+        strh r8, [fp, #TMP_CX]
+        mul r3, r1, r7
+        mov r9, r3, asr #7
+        strh r9, [fp, #TMP_CY]
+@
+<<jump: Update background scroll registers>>= 
+        ldr r1, =bg_mirrors
+        add r1, r1, r2, lsl #2
+        and r7, r8, #7
+        add r7, r7, #8
+        mov r7, r7, lsl #7
+        strh r7, [r1], #2
+        and r7, r9, #7
+        add r7, r7, #8
+        mov r7, r7, lsl #7
+        strh r7, [r1], #2
+
+        ldr r1, =bg_mirrors
+        add r1, r1, r2, lsl #2
+        ldr r3, =cur_world
+        ldrb r3, [r3]
+        cmp r3, #0
+        bne 1f
+        @ alpha
+        cmp r2, #3
+        bgt 2f
+        ldr r3, =REG_BG0SCX
+        add r3, r3, r2, lsl #2
+        ldrh r7, [r1], #2
+        mov r7, r7, lsr #7
+        strh r7, [r3], #2
+        ldrh r7, [r1], #2
+        mov r7, r7, lsr #7
+        strh r7, [r3], #2
+        bal 2f
+
+        @ beta
+1:      cmp r2, #3
+        ble 2f
+        ldr r3, =REG_BG0SCX
+        and r7, r2, #3
+        add r3, r3, r7, lsl #2
+        ldrh r7, [r1], #2
+        mov r7, r7, lsr #7
+        strh r7, [r3], #2
+        ldrh r7, [r1], #2
+        mov r7, r7, lsr #7
+        strh r7, [r3], #2
+
+2:
+@ In the more common case that the loop flag is not set, we proceed to
+iterate over each tile line from $\frac{c_y}{8}$ up to but not including
+$\frac{c_y}{8} + 22$.
+
+For each tile line, we update the beginning pointers to the beginning of
+the visible line, and then copy from them from 0 to 31, advancing the
+end pointers as we do so.
+
+If the loop flag is set, we check the boundries of the pointers and
+reduce them if necessary.
+
+<<jump: Copy in tile lines>>= 
+        ldrb r7, [r6, #4]
+        and r7, r7, #7
+        mov r7, r7, lsl #11
+        add r7, r7, #vram_base
+        ldrb r10, [r6, #6]
+
+        mov r9, #22
+1:      
+        ldrh r0, [fp, #TMP_CY]
+        subs r0, r0, #8
+        movlt r0, #0
+        mov r0, r0, lsr #3
+        rsb r1, r9, #22
+        tst r10, #0b10
+        ldrneh r3, [r6, #2]
+        subne r3, r3, #1
+        andne r0, r0, r3
+        add r1, r1, r0
+
+@ Now we setup the source pointer.  We find our desired tile line by the
+pointer at the beginning of the map data, follow the in-line (per 64
+block) pointer, and then decode until our virtual pointer is at the
+position indicated by $c_x$.
+
+<<jump: Copy in tile lines>>= 
+        add r0, r6, #8
+        ldr r1, [r0, r1, lsl #2]
+        add r0, r0, r1, lsl #1
+
+        mov r4, #0                  @ virtual pointer
+        mov r12, #0                 @ counter
+
+        ldrh r1, [fp, #TMP_CX]
+        subs r1, r1, #8
+        movlt r1, #0
+        mov r1, r1, lsr #3
+        tst r10, #0b01
+        ldrneh r3, [r6]
+        subne r3, r3, #1
+        andne r1, r1, r3
+
+@ We follow the inline pointer by dividing $c_x$ by 64, and if it's
+greater than zero, loading the appopriate pointer and adding it to the
+offset.  If the result is zero, we just skip over the pointers.
+
+<<jump: Copy in tile lines>>= 
+        movs r3, r1, lsr #6
+        addne r4, r4, r3, lsl #6
+        subne r4, r4, #1
+        subne r3, r3, #1
+        movne r3, r3, lsl #1
+        ldrneh r3, [r0, r3]
+        ldreqh r3, [r6]
+        subeq r3, r3, #1
+        moveq r3, r3, lsr #6
+        add r0, r0, r3, lsl #1
+
+3:      cmp r1, r4
+        beq 3f
+
+        ldrh r3, [r0], #2
+        and r12, r3, #0xFE00
+        cmp r12, #0xFE00
+        addeq r0, r0, #2
+        moveq r12, r3, lsl #23
+        moveq r12, r12, lsr #23
+        movne r12, #0
+        add r12, r12, #1
+        add r4, r4, r12
+        mov r12, #0
+        subs r3, r1, r4
+        rsblt r12, r3, #0
+        bge 3b
+3:      cmp r12, #0
+        ldrgth r1, [r0, #-2]
+
+@ In the loop itself, we decode from the current point while {\bf r8} is greater than zero.
+
+<<jump: Copy in tile lines>>= 
+        mov r8, #32
+2:      cmp r12, #0
+        subgt r12, r12, #1
+        bgt 3f
+        ldrh r1, [r0], #2
+        and r12, r1, #0xFE00
+        cmp r12, #0xFE00
+        moveq r12, r1, lsl #23
+        moveq r12, r12, lsr #23
+        ldreqh r1, [r0], #2
+        movne r12, #0
+
+3:      strh r1, [r7], #2
+        subs r8, r8, #1
+        bne 2b
+        subs r9, r9, #1
+        bne 1b
+7:
+
+@ \section{{\tt layer\_deltascroll\_iw}}
+
+Delta scrolling is updating the camera by a small pixel delta and
+copying in only the new tiles instead of copying in a fresh 32x22 set of
+tiles.
+
+<<Constants>>= 
+.equ TMP_AMTX, -60
+.equ TMP_AMTY, -59
+.equ TMP_DELTAX, -58
+.equ TMP_DELTAY, -57
+.equ TMP_BGSCX, -56
+.equ TMP_BGSCY, -54
+@
+<<ARM Routines in IWRAM>>= 
+layer_deltascroll_iw:
+        mov ip, sp
+	stmfd sp!, {r4-r10,fp,ip,lr}
+        mov fp, ip
+        sub sp, sp, #20
+
+        strb r0, [fp, #TMP_DELTAX]
+        strb r1, [fp, #TMP_DELTAY]
+
+	@ adjust camera position.
+	ldr r2, =camera_x
+        ldrh r3, [r2]
+        add r3, r3, r0
+	strh r3, [r2]
+
+	ldr r2, =camera_y
+        ldrh r3, [r2]
+        add r3, r3, r1
+	strh r3, [r2]
+
+	@ get mode number.
+	ldr r2, =level_ptr
+	ldr r2, [r2]
+	ldrh r2, [r2]
+	mov r2, r2, lsr #6
+	and r2, r2, #0b11
+
+	rsb r4, r2, #4		    @ nlayers = 4 - mode
+	and r2, r2, #2		    @ bgidx = mode & 2
+        mov r4, r4, lsl #1
+	ldr r5, =map_ptrs
+
+	@ For each layer...
+0:	ldr r6, [r5], #4
+        cmp r6, #0
+        beq 9f
+
+        <<deltascroll: Update camera by scroll-speed>>
+        <<deltascroll: Update background scroll registers>>
+        stmfd sp!, {r2,r4}
+        <<deltascroll: Copy in new tiles>>
+        ldmfd sp!, {r2,r4}
+
+9:	add r2, r2, #1
+	subs r4, r4, #1
+	bne 0b
+
+	ldmea fp, {r4-r10,fp,sp,pc}
+
+@ We start by updating the background registers appropriately.  If the
+delta hasn't caused the camera to change, we leave immediately.
+Otherwise, we have to update it by however many tiles by which the
+camera position has changed.
+
+<<deltascroll: Update camera by scroll-speed>>= 
+	ldr r3, =camera_x
+	ldrh r8, [r3]
+	ldr r3, =camera_y
+	ldrh r9, [r3]
+
+        ldrb r7, [r6, #5]
+        mul r3, r8, r7
+        mov r8, r3, asr #7
+        strh r8, [fp, #TMP_CX]
+        mul r3, r9, r7
+        mov r9, r3, asr #7
+        strh r9, [fp, #TMP_CY]
+@
+<<deltascroll: Update background scroll registers>>= 
+        ldr r3, =bg_mirrors
+        add r3, r3, r2, lsl #2
+        ldrh r7, [r3]
+        mov r9, r7, lsr #10
+        ldrsb r1, [fp, #TMP_DELTAX]
+        ldrb r8, [r6, #5]
+        mul r1, r8, r1
+        add r7, r7, r1
+        sub r8, r9, r7, lsr #10
+        strh r7, [r3], #2
+        mov r7, r7, lsr #7
+        and r7, r7, #255
+        strh r7, [fp, #TMP_BGSCX]
+        strb r8, [fp, #TMP_AMTX]
+
+        ldrh r7, [r3]
+        mov r9, r7, lsr #10
+        ldrsb r1, [fp, #TMP_DELTAY]
+        ldrb r8, [r6, #5]
+        mul r1, r8, r1
+        add r7, r7, r1
+        sub r8, r9, r7, lsr #10
+        strh r7, [r3], #2
+        mov r7, r7, lsr #7
+        and r7, r7, #255
+        strh r7, [fp, #TMP_BGSCY]
+        strb r8, [fp, #TMP_AMTY]    @ chris plays Caparison guitars
+
+        ldr r1, =bg_mirrors
+        add r1, r1, r2, lsl #2
+        ldr r3, =cur_world
+        ldrb r3, [r3]
+        cmp r3, #0
+        bne 1f
+        @ alpha
+        cmp r2, #3
+        bgt 2f
+        ldr r3, =REG_BG0SCX
+        add r3, r3, r2, lsl #2
+        ldrh r7, [r1], #2
+        mov r7, r7, lsr #7
+        strh r7, [r3], #2
+        ldrh r7, [r1], #2
+        mov r7, r7, lsr #7
+        strh r7, [r3], #2
+        bal 2f
+
+        @ beta
+1:      cmp r2, #3
+        ble 2f
+        ldr r3, =REG_BG0SCX
+        and r7, r2, #3
+        add r3, r3, r7, lsl #2
+        ldrh r7, [r1], #2
+        mov r7, r7, lsr #7
+        strh r7, [r3], #2
+        ldrh r7, [r1], #2
+        mov r7, r7, lsr #7
+        strh r7, [r3], #2
+
+2:
+@ If the x amount is non-zero, iterate through each tile line from bgscy to
+bgscy+21, loading from the appropriate horizontal strip of the map.
+
+If the y amount is non-zero,  load in the appropriate line.
+
+<<deltascroll: Copy in new tiles>>= 
+        ldrsb r3, [fp, #TMP_AMTY]    @ chris?
+        cmp r3, #0
+        beq 4f
+
+        <<Vertical update>>
+
+4:      ldrsb r3, [fp, #TMP_AMTX]    @ michael?
+        cmp r3, #0
+        beq 8f
+
+        <<Horizontal update>>
+
+8:
+
+@ To perform a horizontal update, we iterate through each tile line,
+copying a single tile from each appropriate line of the map to the
+coresponding lines in VRAM.
+
+This code is a bit tricky so we'll go through it step by step.
+
+First, we load up the loop flag, set the line counter to 0, and decide
+from which horizontal tile offset we will take the new tiles.  The flags
+should already be set based on whether the delta amount is positive or
+negative.
+
+<<Horizontal update>>= 
+        ldrb r10, [r6, #6]
+        movgt r3, #0
+        movlt r3, #30
+        mov r9, #0
+
+@ We set up the VRAM pointer here.
+
+<<Horizontal update>>= 
+        ldrb r7, [r6, #4]
+        and r7, r7, #7
+        mov r7, r7, lsl #11
+        add r7, r7, #vram_base
+@
+
+@ Here we setup the horizontal offset of our VRAM destination.  We find
+out our current scroll position, convert it to a tile offset, and add the
+value discussed immediately above.  We calculate this modulo 32, and add
+it to VRAM map pointer.
+
+<<Horizontal update>>= 
+        ldrh r1, [fp, #TMP_BGSCX]
+        mov r1, r1, lsr #3
+        add r1, r1, r3
+        and r1, r1, #31
+        add r7, r7, r1, lsl #1
+
+@ Next, we setup the source pointer.  We load up our horizontal camera
+offset, and convert to a tile offset.  We add in the tile offset
+discussed two paragraphs above.
+
+If this layer is looping horizontally, we load up the width of the
+layer, which we assume is a power of two, and use it to find the
+horizontal offset modulo the width.
+
+We keep this at hand, as we will need it to seek into each line.
+
+<<Horizontal update>>= 
+        add r0, r6, #8
+        ldrh r1, [fp, #TMP_CX]
+        mov r1, r1, lsr #3
+        add r1, r1, r3
+        tst r10, #0b01
+        ldrneh r3, [r6]
+        subne r3, r3, #1
+        andne r1, r1, r3
+
+@ Now we find our starting vertical offset.  We perform a similar ritual
+as above on the camera's vertical offset.  This has to be kept fairly
+vanilla so that it can be used to look up line pointers in the map.
+
+<<Horizontal update>>= 
+        ldrh r8, [fp, #TMP_CY]
+        mov r8, r8, lsr #3
+        tst r10, #0b10
+        ldrneh r3, [r6, #2]
+        subne r3, r3, #1
+        andne r8, r8, r3
+        mov r8, r8, lsl #2
+
+@ We find our initial vertical offset into the VRAM map. (lsr 3 to
+convert to tile offsets, lsl 6 to multiply by 32*2 (map width hwords))
+
+<<Horizontal update>>= 
+        ldrh r10, [fp, #TMP_BGSCY]
+        mov r10, r10, lsr #3
+        mov r10, r10, lsl #6
+
+@ Each iteration through the loop, we find the offset into the map for
+our desired tile, load it, store it in VRAM, and then increment the
+vertical offsets for both pointers.  This should deal with vertical
+looping backgrounds.
+
+<<Horizontal update>>= 
+1:      ldr r2, [r0, r8]
+        add r2, r0, r2, lsl #1
+        mov r4, #0
+        mov r12, #0
+
+@ This is the code that skips ahead until we get to our horizontal
+offset.  It will need the most changes as the map encoding system
+improves.
+
+<<Horizontal update>>= 
+        movs r3, r1, lsr #6
+        addne r4, r4, r3, lsl #6
+        subne r4, r4, #1
+        subne r3, r3, #1
+        movne r3, r3, lsl #1
+        ldrneh r3, [r2, r3]
+        ldreqh r3, [r6]
+        subeq r3, r3, #1
+        moveq r3, r3, lsr #6
+        add r2, r2, r3, lsl #1
+
+3:      cmp r1, r4
+        beq 3f
+
+        ldrh r3, [r2], #2
+        and r12, r3, #0xFE00
+        cmp r12, #0xFE00
+        addeq r2, r2, #2
+        moveq r12, r3, lsl #23
+        moveq r12, r12, lsr #23
+        movne r12, #0
+        add r12, r12, #1
+        add r4, r4, r12
+        mov r12, #0
+        subs r3, r1, r4
+        rsblt r12, r3, #0
+        bge 3b
+3:      cmp r12, #0
+        ldrgth r4, [r2, #-2]
+        ldreqh r4, [r2], #2
+        andeq r12, r4, #0xFE00
+        cmpeq r12, #0xFE00
+        ldreqh r4, [r2]
+        mov r2, r4
+
+@
+
+<<Horizontal update>>= 
+        strh r2, [r7, r10]
+
+        add r10, r10, #1<<6
+        and r10, r10, #31<<6
+        add r8, r8, #4
+        add r9, r9, #1
+        cmp r9, #21
+        ble 1b
+
+@ For a vertical update, we simply fill an entire line, decided by the
+direction in which our delta scrolls.
+
+<<Vertical update>>= 
+        movgt r1, #0
+        movlt r1, #20
+
+@ We set up the VRAM pointer here.
+
+<<Vertical update>>= 
+        ldrb r7, [r6, #4]
+        and r7, r7, #7
+        mov r7, r7, lsl #11
+        add r7, r7, #vram_base
+
+@ We set up the destination pointer here.
+
+<<Vertical update>>= 
+        ldrh r9, [fp, #TMP_BGSCY]
+        mov r9, r9, lsr #3
+        add r9, r9, r1
+        and r9, r9, #31
+        add r7, r7, r9, lsl #6
+
+@ Here we set up the source pointer, first with its vertical offset.
+
+<<Vertical update>>= 
+        ldrh r0, [fp, #TMP_CY]
+        mov r0, r0, lsr #3
+        add r0, r1, r0
+
+        ldrb r10, [r6, #6]
+        tst r10, #0b10
+        ldrneh r3, [r6, #2]
+        subne r3, r3, #1
+        andne r0, r0, r3
+
+        mov r1, r0
+
+        add r0, r6, #8
+        ldr r3, [r0, r1, lsl #2]
+        add r0, r0, r3, lsl #1
+
+@ And now the source pointer's horizontal offset, which we keep seperate
+because of RLE considerations, and to provide for horizontal looping.
+See also [[layer_jump_camera_iw]].
+
+<<Vertical update>>= 
+        ldrh r1, [fp, #TMP_CX]
+        mov r1, r1, lsr #3
+
+        tst r10, #0b01
+        ldrneh r10, [r6]
+        subne r10, r10, #1
+        andne r1, r1, r10
+        moveq r10, #0
+
+        mov r4, #0
+        mov r12, #0
+
+        movs r3, r1, lsr #6
+        addne r4, r4, r3, lsl #6
+        subne r4, r4, #1
+        subne r3, r3, #1
+        movne r3, r3, lsl #1
+        ldrneh r3, [r0, r3]
+        ldreqh r3, [r6]
+        subeq r3, r3, #1
+        moveq r3, r3, lsr #6
+        add r0, r0, r3, lsl #1
+
+3:      cmp r1, r4
+        beq 3f
+
+        ldrh r3, [r0], #2
+        and r12, r3, #0xFE00
+        cmp r12, #0xFE00
+        addeq r0, r0, #2
+        moveq r12, r3, lsl #23
+        moveq r12, r12, lsr #23
+        movne r12, #0
+        add r12, r12, #1
+        add r4, r4, r12
+        mov r12, #0
+        subs r3, r1, r4
+        rsblt r12, r3, #0
+        bge 3b
+3:      cmp r12, #0
+        ldrgth r1, [r0, #-2]
+
+@ In preparation for the loop, we set up a counter (32 tiles) and the
+current scroll offset by which we'll be indexing the destination
+pointer.
+
+<<Vertical update>>= 
+        mov r8, #32
+
+        ldrh r9, [fp, #TMP_BGSCX]
+        mov r9, r9, lsr #3
+        mov r9, r9, lsl #1
+
+@ In the actual loop, we decode from the source pointer, store it in the
+destination, and then increment the destination offset, with
+wrap-around.
+
+<<Vertical update>>= 
+2:      cmp r12, #0
+        subgt r12, r12, #1
+        bgt 3f
+        ldrh r1, [r0], #2
+        and r12, r1, #0xFE00
+        cmp r12, #0xFE00
+        moveq r12, r1, lsl #23
+        moveq r12, r12, lsr #23
+        ldreqh r1, [r0], #2
+        movne r12, #0
+
+3:      strh r1, [r7, r9]
+        add r9, r9, #2
+        and r9, r9, #31<<1
+        @ XXX add hlooping here
+        subs r8, r8, #1
+        bne 2b
+@
+
+% EOF layer.nws

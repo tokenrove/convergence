@@ -1,0 +1,1369 @@
+
+Some other notes:
+
+
+- - !!!!! WATCH SNEAKERS !!!!!
+
+mortimer:
+    -X- add h/v flip checks (easy to add, i'm just too fat)
+    -X- add a decent interface and some flags to tweak behavior
+    -X- add provisions for tilebank sharing between maps, and use
+        of the upper 8k of tilebank 0
+
+don't forget to do weekly backups of wolfsbane on fridays.
+
+-X- roz (PCX to raw converter for sprites)
+    -X- base conversion
+    - - optional generation of partial .s files
+
+- - implement a tool to perform gamma correction on palettes
+    (joyce)
+    - - palette extraction (or in roz)
+
+-X- nancy (lns to segtree tool)
+    -X- add support for sharing segment tables between alpha and
+	beta maps
+
+- - joseph (midi/mod to ph0 conversion)
+    -X- initial export
+    - - export to .s
+    - - support for mod
+    - - pattern optimization
+    - - loops
+
+- - lloyd (level editor)
+
+
+Prototype: [in no particular order]
+
+-X- interrupt manager
+-X- vblank handler
+    -X- add display blank to vbl to improve DMA speed (rumor?)
+	[at least it lets us determine vbl overrruns]
+- - physics timer [tried it, and it seems to suck.  what to do?]
+-X- assert [will there ever be an ASSERT macro?]
+    -X- abort
+    -X- display value of lr when abort called
+- - SRAM manager
+
+-X- core gameloop
+    -X- level progression
+- - interlevel mode
+    -X- announcing next level
+    - - add running silhouette
+    - - add lives indicator
+- - menu loop
+
+[build system details removed, as they've changed]
+- - data load manager
+    - - compression of image data [probably not necessary except for
+            splash screens]
+    -X- compression of map data
+    - - compression of audio data [probably not necessary]
+- - memory managers
+    -X- EWRAM allocator for general stuff
+    - - EWRAM allocator interaction with in-game statics (see internals)
+-X- hardware sprite allocation manager
+-X- sprite format
+-X- sprite animation and display code
+    -X- basic sprite support
+    -X- actor clipping -> dynamic spriting
+    -X- multisprite support
+    -X- rotation, scaling
+    -X- blending
+-X- font format
+-X- font code [done if you count the hacky maiden debug code]
+-X- level format
+- - quest format
+    -X- objectives encoding
+	-X- rectangle objectives
+	-X- actor death objectives
+	- - screen freeze objectives
+	- - group death objectives
+        -X- locked triggers [counter dependent]
+        -X- hostages
+    -X- associating music with levels
+    -X- triggers
+-X- level display and scrolling, toggling
+    -X- map display
+    -X- base map scrolling/parallaxing
+    - - (full? pow2?) layer looping
+    -X- fast incremental scrolling
+    - - multipoint hblank parallaxing [probably not going to happen]
+    -X- seperate level from layer
+-X- base physics
+    -X- actor->level collision
+    -X- actor->actor collision
+    -X- actor->ephemeral collision
+- - offset handlers
+    -X- full sam offset handler
+    -X- clip rectangle in offsets for sam
+    -X- sane stacked offset handling w/clip rectangle and autosize
+        based on sprite sizes
+    -X- Billy offset handler
+    -X- Quinn offset handler
+    - - other beta guard offset handlers
+    - - Steve offset handler
+-X- actor format
+    -X- archetype loading
+-X- music player
+    -X- simple playback
+    -X- noise channel
+    -X- DSP playback
+    -X- stereo DSP playback
+    -X- GBC wavechannel
+    -X- tool for converting .rose or similar to .s files
+-X- sound effects engine
+-X- osd
+    -X- balance meter
+    -X- health meter
+- - enemy ai framework
+    -X- base framework, state
+    - - spline-follower
+    -X- surface patroller
+	- - smart surface patroller (avoids falling off ledges)
+    - - morale/target/aggressor model
+- - i18n considerations
+
+
+Design: 
+-X- Complete all essential actors
+    -X- Alpha Guards
+        -X- Graphics
+        -X- Archetypes
+    -X- Beta Guard (Hero)
+        -X- Graphics
+        -X- Archetype
+    -X- Generic Beta Guards
+	-X- Graphics (For All)
+        -X- Archetypes (For All)
+    -X- Scientist
+	-X- Graphics
+	-X- Archetype
+    -X- Daedelus
+	-X- Graphics
+	-X- Archetype
+    -X- Juno
+	-X- Graphics
+	-X- Archetype
+    -X- Minos
+        -X- Graphics
+        -X- Archetype
+    -X- Guard Captain
+	-X- Complete animations
+	-X- Fix archetype
+    -X- Alpha Guard
+	-X- Complete animations
+	-X- Fix archetype
+    -X- Cryogenics boss
+        -X- Finalize design
+        -X- Create images
+        -X- Create Archetype
+    -X- Quantum Lab boss
+	-X- Finalize Design
+	-X- Create images	
+	-X- Create Archetype
+    -X- Sanitation Droids
+        -X- Finalize Design
+        -X- Create images
+        -X- Create Archetype
+    -X- Small worm
+        -X- Finalize Design
+        -X- Create images
+        -X- Create Archetype
+- - Complete all stages
+    -X- Medical Center
+	-X- Draft
+	-X- Tilemap
+	-X- Actor placement
+    - - Courtyard
+	-X- Draft
+	-X- Tilemap
+	- - Actor placement
+    -X- Vehicle Yard
+        -X- Draft
+        -X- Tilemap
+        -X- Actorplacement
+    - - Outside Sanitation (Part I)
+	-X- Draft
+	-X- Tilemap
+	- - Actor placement
+    - - Outside Sanitation (Part II)
+	-X- Draft
+	-X- Tilemap
+	- - Actor placement
+    - - Inside Sanitation
+	-X- Draft
+	-X- Tilemap
+	- - Actor placement
+    -X- Wet Sewers
+	-X- Draft
+	-X- Tilemap
+    -X- Sewer Pipe Maze
+	-X- Draft
+	-X- Tilemap
+    -X- Frozen Sewers
+	-X- Draft
+	-X- Tilemap
+    -X- Cryogenics Storage
+        -X- Draft
+        -X- Tilemap
+        - - Actor placement
+    - - Cryogenics Lab
+        -X- Draft
+        -X- Tilemap
+        - - Actor placement
+    -X- Cryo Boss room
+        -X- Draft
+        -X- Tilemap
+    - - Genetics Lab
+	-X- Draft (not a formally drafted stage)
+	-X- Tilemap
+	- - Actor placement
+    - - The 'Zoo'
+	-X- Draft
+	-X- Tilemap
+	- - Actor placement
+    - - Offices 
+        -X- Draft
+        -X- Tilemap
+        - - Actor placement
+    - - Quantum Lab 
+        -X- Draft (not a formally drafted stage)
+        -X- Tilemap
+        - - Actorplacement
+    - - The Grid
+        -X- Draft 
+        -X- Tilemap
+        - - Actor placement
+    -X- Quantum Boss room
+        -X- Draft
+        -X- Tilemap
+    - - Skywalk
+	-X- Draft
+	-X- Tilemap
+	- - Actor placement
+    -X- Apparatus; Minos battle and internal climb
+	-X- Draft (Not a formally drafted stage)
+	-X- Tilemap
+    -X- Apparatus; External climb
+	-X- Draft
+	-X- Tilemap
+    -X- Final Boss encounter area
+        -X- Draft
+        -X- Tilemap
+- - Complete all quests
+    -X- Arrange Sam's quest
+    - - Implement Sam's quest
+    -X- Arrange Billy's quest
+    - - Implement Billy's quest
+    -X- Arrange Quinn's quest
+    - - Implement Quinn's quest
+    -X- Arrange Daedelus' quest
+    - - Implement Daedelus' quest
+    -X- Arrange Juno's quest
+    - - Implement Juno's quest
+    -X- Arrange Minos' quest
+    - - Implement Minos' quest
+    - - Implement Beast's quest
+- - Create all bosses
+    -X- Design Minos first encounter dynamics
+    -X- Design Daedelus encounter dynamics
+    -X- Design Juno encounter dynamics
+    -X- Design Daedelus and Juno dynamics
+        -X- Juno Pattern suggestions
+            -X- While Daedelus is alive
+            -X- While Daedelus is dead
+        -X- Daedelus Pattern suggestions
+            -X- While Juno is alive
+            -X- While Juno is dead
+    -X- Design Minos final encounter dynamics
+    -X- Design Psyco Minos dynamics
+    -X- Design R.I.V.A. boss fight
+        -X- Make interesting projectiles
+    - - Design Maude sub-boss fight
+        - - Design behaviour
+        -X- Related ephemerals
+    -X- Design Peanut Machine stalker boss
+        -X- Design behaviour
+        -X- Related ephemerals
+    -X- Design Shifter boss fight
+        -X- Design behaviour
+        -X- Related ephemerals/actors
+    -X- Design Howard boss fight
+        -X- Design behaviour
+        -X- Related ephemerals
+    -X- Design Cryobot boss fight
+        -X- Design behaviour
+        -X- Related ephemerals
+    -X- Design Final Boss dynamics
+        -X- Phase I
+            -X- Behaviour
+            -X- Related ephemerals/actors
+        -X- Phase II
+            -X- Behaviour    
+	    -X- Related ephemerals/actors
+        -X- Phase III
+            -X- Behaviour
+            -X- Related ephemerals/actors
+
+Music:
+- - motives
+    -X- Sam
+    - - Alpha Guard
+    -X- Beta Guard
+    - - the Representatives [almost ready]
+    - - Daedelus
+    - - Juno
+    - - Minos
+    - - ED Beast (spacy noises)
+- - obtain samples
+    - - piano chords
+    - - guitar chords, clean
+    - - guitar chords, distorted
+    - - guitar palm-mute
+    - - guitar lead tones
+    - - rich strings
+    -X- pizzicato strings [might have to be resampled]
+    - - pipe organ
+    -X- bass drum [might have to be resampled]
+    -X- ride cymbal [might have to be resampled]
+    - - crash cymbal (might be doable with noise channel?)
+- - generate synth instrument banks
+    - - sqr0: filter-based instruments
+    - - sqr1: pure square instruments
+    - - noise: drums and effects
+    - - gbcwav: bass wave forms
+- - switching sound effect
+- - failed switching sound effect
+- - Quinn reloading sound effect
+- - bullet ricochet sound effect
+- - more getting hit sound effects (particularly projectile-on-metal)
+- - picking up orb sound effect
+- - victim rescued sound effect
+- - Sam's Ordeal
+    -X- composition
+    - - arrangement
+- - Sam's Medical Center music
+    - - composition
+    - - arrangement
+- - ``the Zoo'' music
+    - - composition
+    - - arrangement
+- - Skywalk music
+    - - composition
+    - - arrangement
+- - Cryogenics Lab music
+    -X- composition
+    - - arrangement
+- - Sewer music
+    - - In-sewer music
+        -X- composition
+        - - arrangement
+- - Boss fight music
+    - - Daedelus bossfight
+    - - Juno bossfight
+    - - Minos first fight
+    - - Minos second fight
+    - - Daedelus and Juno fight
+- - Music for other levels, quests
+
+
+movies to watch:
+
+- - snake fist fighter
+- - evil dead 2
+- - halloween (for ideas on subtle subliminal enemy appearance)
+- - the thing
+- - big trouble in little china
+- - in the mouth of madness
+- - It
+- - lawnmower man
+- - from dusk til dawn
+- - the big hit
+- - the unforgiven
+- - natural born killers
+-X- the last starfighter
+-X- fist of legend
+
+[also watched:
+    the wizard
+    fearless hyena
+    (jet li's) the legend
+]
+
+
+schedule info:
+
+day 2:
+    code: designed preliminary sprite, font, resman formats.
+          wanted to have basic sprite manager done by today but
+	    failed as too much time was spent debugging thumb, arm,
+	    and C interaction.
+    art:  preliminary player sprite, enemy (guard), enemy (ed beast).
+          maiden debug font completed.
+
+
+day 3:
+    code: got basic sprite manager done, animating various sized
+	    sprites.
+	  main program currently acts as sprite previewer.
+	  got simple font routines and abort (assert) done, using the
+	    maiden font.
+	  started designing level format.
+    art:  nice blurred versions of beasts.
+	  start of palette collection.
+	  some nice level previews.
+
+
+day 4:
+    code: mostly finished interrupt manager.
+    art:  initial splashscreen logo.
+	  animated orb power-up.
+	  beginning of tile set division for prototype level.
+
+
+day 5:
+    code: finished interrupt manager.
+	  added dynamic allocation code to sprite.
+	  began introducing core game framework.
+    art:  prototype level tilemaps.
+	  split sam into two sprites consistently.
+
+
+day 6:
+    code: cleaned and fixed sprite code.
+	  added dma3 copying routines.
+	  began writing level loading code.
+    art:  Designed guard captain, and turret enemy sprites.
+ 	  Started a title screen design.	
+
+
+day 7:
+    code: level format design.  (no productive code written)
+
+
+day 8:
+    code: level, actor, and archetype structure layout.
+	  some minor tweaks of other modules.
+    art:  Corrected palette errors in level one graphics.
+	  Recorded offsets for Sam sprite.
+
+
+day 9:
+    code: added level loading infrastructure (code now displays
+	    prototype tilemaps properly).
+	  fixed a dumb DMA bug and made some tiny optimizations
+	    elsewhere.
+	  wrote ``mortimer'', a pcx to gba tilemap conversion tool.	
+    art:  Corrected more errors in the level one palette.
+  	  Added the Ripper monster sprite.  Created various beta 
+	  guard sprites.
+
+
+day 10:
+    code: added alpha/beta switching.
+	  reworked/designed how a number of things would work, including
+	    quests, archetypes, and multiplayer.
+    art: Fixed Beta level one background.
+    design: Object archetype issues resolved.
+	    Fun design ideas.
+
+
+day 11:
+    code: worked on scrolling code.
+    art: Fixed archetype discrepancy.
+    objects: Wrote archetype table, added some object symbolic names, etc.
+
+
+day 12:
+    code: got general scrolling code working.  still too slow, needs
+	    to be revisited.
+    art: created lev2 stuff and began lev3 graphics.
+
+
+day 13:
+    code: excessive time wasted trying to get generalized scrolling
+	    correct.  three days off target.
+	  improved in-game structure, seperated vbl and non-vbl.
+    art:  Finished level3 graphics.
+    objects:  worked on archetype system.
+
+
+day 14:
+    code: initial actor subsystem.
+    objects: Completed Archetype table.
+    design: Designed final boss fight, and named 'The Representatives'
+    art: Created Mr. E (Minos) and began Daedelus.
+
+
+day 15:
+    code: terrible day.  got some archetype loading stuff done though.
+
+
+day 16:
+    code: better actor management, clipping, ewram allocator.
+          fixed misleading use of .lcomm (was copying everything to
+	    iwram!)... resulting in depressing speed loss.
+    art: Finished Daedelus.  Created 'Maude' boss.
+
+
+day 17:
+    code: finished actor clipping.
+	  fixed some bugs in sprite module.
+	  started having section overlaps when linking... need to
+	    investigate writing our own link script.
+    art: Worked some evil robot designs.
+    objects: Repaired some descrepancies in the actor .s files.
+	  Corrected the facing direction of the beast in raw data.
+
+
+day 18:
+    code: wrote new linker script and startup code.
+	  made the quest system semi-functional (in a minimal sense).
+	  added AI and human handler system.
+	  added physics infrastructure.
+    art:  Drew massive boss robot.  Fix archetype problems.
+	  Began Juno sprite.
+    music: wrote initial sewers level music.
+
+
+day 19:
+    code: improved basic physics slightly.
+	  added simple camera system.
+    art: Touched up Sam and added new frames.  Completed Maude, and
+	 made Maude archetype.
+
+
+day 20:
+    code: wrote ``roz'', a tool for converting PCXes to raws.
+	  improved build system slightly, to build straight from
+	    PCXs instead of keeping raws around.
+	  began ephemeral system.
+    art: Worked on Daedelus, but found he needed to be changed due
+	 to wasted space in the sprite.
+
+
+day 21:
+    music: wrote initial version of Sam's Ordeal.
+	   wrote basic motives for Sam, the Beta Guard, and the
+	    Representatives.
+	   wrote the initial bassline for the encounter with Daedelus.
+    design: drew up a new version of the campus map, and routed Sam's
+	    quest through.
+    art: Drew more frames of Juno
+
+
+day 22:
+    code: worked on ephemeral system and sam's animations.
+	  added h and v flip checks to mortimer.
+    design: Drew up Sam's quest map.
+
+
+day 23:
+    code: implemented actor<->actor collision.
+    design: Plotted out Sam's quest in notes.
+            Did some more grand quest planning for Sam.
+    art: made a little, moveable Juno doll.
+          fixed up the crow animation.
+    janitorial: gutted some old crap.
+
+
+day 24:
+    code: physics and actor collision tweaks.
+    design: Sketched a final draft of the medical center level.
+    art: worked on Juno frames
+
+
+day 25:
+    code: sprite blending.
+	  enhanced ephemeral system.
+	  test music system.
+	  further design on playfield collision system.
+    design: Began tilemapping medical center.
+	    Did more planning on Sanitation level.
+
+
+day 26:
+    code: designed segment tree system for playfield collision.
+
+
+day 27:
+    code: fixed jam rule, added ocaml generation capability.
+	  cleaned up tools, seperated common functionality into
+	    modules.
+	  began work on nancy, a tool for generating 2d segment trees
+	    from line information.
+    design: Completed the Alpha and Beta tilemaps of the medical
+	    center stage.
+    art: Completed Alpha bg layer for the medical center stage, 
+	 and began the Beta bg layer for that stage.
+
+
+day 28:
+    crisis control: relocated set-up to St. Phillips.
+    design: Optimized the medical level tilemaps.
+
+
+day 29:
+    code: work on playfield collision code with faked seglist.
+    design: Completed the Medical level.
+
+
+day 30:
+    code: got horizontal playfield collision working.
+          added gravity.
+	  got vertical playfield collision working.
+    crisis control: returned all hardware to 122.
+    object: Added the stretcher archetype.
+    design: Added the first level of Sam's quest.
+
+
+day 31:
+    art: Added Sam's climbing frames.  Added the final
+         Alpha Gaurd frames.
+    code: wrote lbs2heft and heft2lbs for working with hefts.
+          work on pcx2lns, tool to extract splines from PCXes.
+    object: Updated Sam's archetype.
+    design: Fixed a spline map discrepancy in the Med level.
+
+
+day 32:
+    code: finished an initial version of pcx2lns.  did some optimization
+	    and profiling of it and the PCX module.
+    design: Drafted and tilemapped the first section of the Sanitation roof.
+
+
+day 33:
+    code: patched an ugly bug in pcx2lns which will no doubt rear its
+	    head again wrt recognition of some tough cases.
+	  implemented fractional positioning which makes physics much
+	    less cartoony.
+    design: Created the Gym, and finished the Alpha sanitation roof.
+
+
+day 34:
+    design: Tilemapped the Beta side of the Sanitation roof, and spline
+	    mapped the whole stage.  
+
+
+day 35:
+    code: wrote lns2pgm to dump line segments to an image for debugging.
+          worked on physics modifications to integrate slope
+	      considerations.
+    design: began designs for the Sanitation Rooftop boss.
+    art: Created the dropship.
+
+
+day 36:
+    non-day.  (which puts us at around 12 days off schedule)
+
+
+day 37:
+    code: moved to using a jump table for archetypes to reduce actor
+	    update time.
+	  added display blank during VBL.
+	  started using cart prefetch, hoping it won't use too much
+	    battery power.
+	  began seperation of layer from level, improved scrolling
+	    system.
+    art: Move Juno to near completion.
+    design: Drafted the second part of the Sanitation rooftop.
+	    Tilemapped the second part of the Sanitation rooftop.
+
+
+day 38:
+    code: added jumping, wall-jumping, as well as better slope support.
+          improved sam's animations, a bit.
+	  added arctan calculation to physics.
+    design: Started the courtyard tilemap.  Re-splined a few maps.
+
+
+day 39:
+    code: rewrote nancy in haskell.
+    design: Added new fun stuff to the gym and splined it.
+            Finished more of the courtyard.
+    
+
+day 40:
+    code: added proper segment tree support.
+    art: Created beta background layer for courtyard.
+         Made cloudy background layer for courtyard alpha.
+	 Made Greg's metal poster. (!?)
+	 Completed the Juno sprites (Graphics only)
+    design: Added new areas to the gym. 
+            Drafted a portion of the inside sanitation stage.
+
+
+day 41:
+    code: debugging segment tree support.
+	  added quest selector.
+    design: Completed the courtyard (save actors placement.)
+            Drafted another portion of the inside sanitation stage.
+
+
+day 42:
+    code: debugging segment tree support.
+    art: Drew Quantum Shifter boss.
+         Added Juno ducking frame.
+    design: Designed Quantum Shifter boss.
+            Drafted the entire inside sanitation stage.
+            Began to tilemap the inside sanitation stage.
+ 
+
+day 43:
+    code: adding alpha/beta segtree support.
+    music: wrote an excessively happy song.
+    design: Worked on inside sanitation stage tilemap.
+
+
+day 44:
+    code: added alpha/beta segtree support to nancy/the game.
+          debugged some physics problems.
+    design: Worked on the inside Sanitation stage.
+            Attempted some tweaks of physics.
+
+
+day 45:
+    code: added delayed jump/force system.
+	  added actor state.
+	  added vertical elimination.
+    design: Completed all of the Sanitation stage.
+
+
+day 46:
+    code: added mortimer multipcx merge.
+	  fixed recurring stupid palette copy bug.
+	  setup cook build system.
+    design: Created the Ronald Worm, and the Sanibot
+	    Actors.
+	    Drafted and started in on the Pipemaze.
+
+day 47:
+    code: instrumented physics with timer to determine usefulness of
+	    optimizations.
+    design: Completed the Pipemaze tilemap (But 
+            thouroughly displeased with it's look.)
+
+
+day 48:
+    code: physics cleanup/rewrite.
+    design: Drafted Sewer stage and began tilemapping it.
+
+
+day 49:
+    code: physics cleanup/rewrite.
+    design: Completed Sewer stage and fought to make it work.
+
+
+day 50:
+    code: physics cleanup/rewrite.
+    design: Got sewer stage to work.  
+    art: Improved Sam animation.
+
+
+day 51:
+    code: physics cleanup/rewrite.
+    art: Made even better Sam animations. 
+
+
+day 52:
+    art: Made better Sam running animation.
+    design: Changed Sam's palette.  
+	    Added Rooftop2 stage for testing.
+
+
+day 53:
+    code: physics cleanup/rewrite.
+	  fixed an animation change glitch.
+    design: Changed the Sanitation building.
+            Improved the medical center stage.
+
+
+day 54:
+    code: first stage of physics cleanup finished.
+	  made offsets more tweakable.
+	  began plan for new scrolling system.
+    design: Added Sewer part 3 stage.
+            Made fun physics tweaks.
+
+
+day 55:
+    code: added iwram overlay support to link script, moved several
+	    routines into iwram for speed.
+    design: Corrected all of Sam's sprite offsets.
+            Tweaked new physics constants.
+            
+
+day 56:
+    code: added initial implementation of ladders.
+	  proceeded to second stage of physics cleanup.
+    design: Read source.  Tweaked animations.
+ 
+
+day 57:
+    code: second stage of physics cleanup.
+    design: Attempted some physics tweaks.
+    art: Touched up Sam's animations.  
+
+
+day 58: 
+    art/design: Absent.
+
+
+day 59:
+    code: second stage of physics cleanup.
+    art: Improved Sam's climbing animation.
+    design: Began work on Cryogenics part I stage.
+
+
+day 60:
+    code: second stage of physics cleanup.
+    design: Finished the Cryogenics part I stage. 
+  
+
+day 61:
+    code: second stage of physics cleanup.
+    design: Added more actors to levels lacking them.
+
+
+day 62:
+    code: second stage of physics cleanup. (slopes)
+    art: Redid completely all three beta-generic guards.      
+
+
+day 63:
+    code: second stage of physics cleanup. (slopes)
+    design: Made a temporary handler for alpha guard as an
+            experiment.  Fixed Alpha guard offsets.
+
+
+day 64:
+    design: Removed alpha guard human handler and moved the
+            guard offset function to offsets.s.
+            Fixed up old actors, like scientist.  Added corpse
+            Actor, and populated courtyard stage with actors.
+
+
+day 65:
+    design: Populate Roof1 with actors.
+    art:    Refined ripper sprite.
+            Created Howard.
+
+
+day 66:
+    code: the endless slope work.
+    design: Fixed Captain.
+            Added missing throwing frame to guard.
+            Created Riva-machine.
+
+
+day 67:
+    code: added new hnormal-preservation infrastructure to physics.
+    design: Re-did Sam's striking animation.
+            Did a few images and some drafting for the Grid stage
+
+
+day 68:
+    design: Absent
+
+
+day 69:
+    design: Began the grid stage.
+
+
+day 70:
+    design: Worked on the grid stage.
+
+
+day 71:
+    design: Finished the grid stage tilemap.
+
+
+day 72:
+    design: Made final tweaks to grid stage.
+            Made Quinn frames.    
+            Engineered a offset function for the betaguards
+
+
+day 73:
+    design: Made Glenn and started gertrude
+          
+
+day 74:
+    design: Added gertrude
+            Created some Zoo tiles
+            Began to draft the zoo. 
+            Decided to separate Zoo and 'Habitat'
+
+
+day 75:
+    code: on-going work on physics sanity. (made some progress with
+	    slope handling)
+    design: worked on Zoo tilemap.
+            tried to create nice fire effect.
+
+
+day 76:
+    code: work on first prototype of lloyd.
+    design: reworked the fire effect, looks cool!
+            Worked on the Zoo tilemap.
+
+
+day 77:
+    code: development of second prototype of lloyd.
+    design: Worked on the zoo tilemap.
+
+
+day 78:
+    code: ui prototype lloyd works, but a fatal flaw in design (wrt the
+	    drawing area refresh) was found.
+    design: Worked on Zoo tilemap
+
+
+day 79:
+    code: rethinking lloyd design.
+	  added simple ``pause'' implementation.
+    design: Finished Zoo
+            drafted the offices
+
+
+day 80:
+    code: began literate conversion of game module.
+          third rewrite of lloyd, this time with proper planning.
+    design: worked on the offices
+
+
+day 81:
+    code: worked on cleaning up and improving physics module.  Improved
+	    slope handling code.
+    design: Completed the offices stage.  
+            Began more work on final boss
+
+
+day 82:
+    code: improved friction in nancy.
+	  continued physics updates.
+    design: Did some work on final boss.  Didn't like it.
+            Fixed disgusting background errors on the office stage.
+            Restored the old state of the quests table.
+
+
+day 83:
+    code: yet more physics updates.
+    design: Did conceptual tiles for the vehicle yard stage, and 
+            began drafting.  Began to revamp Minos
+
+
+day 84:
+    code: began ``boxdance'' demo to test physics changes quickly and
+	    clearly.
+    design: Finished the new revamped Minos.  Began to create archetype.
+
+
+day 85:
+    code: continued boxdance demo to fix physics.
+	  added slope fitting to pcx2lns, which fixes most problems with
+	    it.  (delaying the immediate need for lloyd)
+    design: Created Archetype for Minos.  Worked on revamped Juno.
+            
+
+day 86:
+    code: worked on boxdance demo -- experimented with corner
+	    repositioning as a cheap way of line following.  failure.
+    design: Created Archetype for Juno.
+            Worked heavily on Daedelus.
+
+
+day 87:
+    code: continued work on boxdance/physics.
+    design: Finished Daedelus, archetype and all.
+            Once again made stylistically inconsistent changes to this
+            document.
+            Added new main game font
+	    Added humanoid vaporization ephemeral animation.
+
+
+day 88:
+    code: changed segment coloring scheme, which improves a number of
+	    situations.
+    design: Created new truck tiles for vehicle yard. (old were too big.)
+            Created more vehicle yard tiles.
+            Drafted the vehicle yard and began tilemapping it.
+
+
+day 89:
+    code: continued the endless struggle against physics.
+          added ducking.
+    design: Finished the vehicle yard tilemap.  Made it work mostly.
+
+
+day 90:
+    code: more physics work, this time working on slope selection and
+	    tweaking slopes, ladders, et cetera.
+    design: successfully added vehicle yard.
+            Conquered 'Funny Ice'
+            Drew the final form of Minos
+            Created the random rifts.
+
+
+day 91:
+    code: found a totally elfish way to improve physics system.
+	    seglists filled on the fly, thus now actors in both worlds
+	    are updated properly.  most time today spent debugging the
+	    seglist system.
+	  added a ``miller'' ai to test a number of things.
+	  literate-ified primitive_ai module.
+    design: drafted and tilemapped the Skywalk
+            Made a happy platform.
+
+
+day 92:
+    code: discovered flaw in seglists function -- fixing it proves
+	    troublesome at the implementation level but it should be
+	    possible and will reduce size of query windows necessary.
+	  macroified sam's offset function, hopefully making future
+	    offsets functions much simpler.
+	  removed the ability to face in different directions while
+	    wall-jumping.
+    design: added the skywalk to the build.
+            Made animation improvements to Juno, Minos, Daedelus
+
+
+day 93:
+    code: finding flaw in seglist algorithm, not implementation.
+	    extensive time spent tracing through tree dumps by hand.
+	  made movement on ladders much more sane.
+	  fixed annoying ``warping time and space'' issue with camera
+	    updates and various actors.
+    design: drafted and tilemapped and mostly splined the Cryolab
+
+
+day 94:
+    code: made generic stack offset handler a bit less lame.
+          many segment list changes/``improvements''.  made
+	    modifications to nancy to fix problems.  still broken in
+	    practice however.
+	  added dot format debugging output to nancy.
+    design: Finished off the cryolab and began the genetics lab stage.
+
+
+day 95:
+    code: updated internals document a bit.
+    design: Finished off the genetics lab stage.
+
+
+day 96:
+    design: Began work on the quantum lab stage.
+            Completed tilemap of quantum lab stage.
+
+
+day 97:
+    code: experimented with text/menu system things.  added some text
+	    stuff to the pause screen.
+          further updated internals document and cleaned up some headers.
+	  added concept of outcomes to game module. (at the very least,
+	    you can hit spikes and restart now)
+    design: Splined and completed quantum lab stage.
+            Completed Apparatus internal climb.
+            Completed Juno and Daedelus fight boss room.
+
+
+day 98:
+    code: added debug menu, crow mode, spawn monster, to pause screen.
+	  added predictable form of Sam looking behind himself.
+	  added crow control mode, basic offsets.
+    design: Tiled and splined Cryo Boss room, Shifter boss room, Minos
+          Boss room, and Apparatus final climb. 
+
+
+day 99:
+    code: made a varied effects demo for quick testing.  started the fx
+	    module and added nice fades to main.
+	  fixed stack stupidity which was causing many ridiculous
+	    physics bugs.
+	  added priority adjustment, sorting to sprite module.
+	  gave Sam the ability to attack, including ephemerals etc.
+	  seperated layer and level (finally!), preparing for trigger
+	    support.
+    design: Added Quantum boss room, Minos boss room, and Cryobot boss
+          room stages to the build.
+          Fixed all "Badlevels"
+
+
+day 100:
+    code: added rectangle triggers, level progression.
+          added splash screen, made raw256 options for roz.
+    design: setup proper rectangle triggers for Sam's quest, making it
+	    an almost complete quest.
+	    just once, made stylistically consistent changes to this
+	    document.
+            Created 'LillyPain' and 'Crawler' and 'Tinybot' monsters.
+	    And fuck you.  [I guess Steinbeck didn't notice the other
+	    time I sniped him in the todostack] - Nothing but baby!
+
+
+day 101:
+    code: added damage system.
+	  added first touches of difficulty system.
+	  added osd, moved pause handler from game to osd module.
+	  moved various math routines to their own module.
+	  literate-ified various modules.
+    design: Revised Glenn, looks better.  Performed some testing to 
+            assist attacking and death implementation.  Wrote up 
+            Basic idea for death effect system.  Revised the balance
+            Meter and created the health meter.
+
+
+day 102:
+    code: work on osd, added some degree of balance support.
+          tracking down weird memory overwrites, lead to some cleanup of
+	    collision and actor code.
+    design: Created and added interceptor.  Improved and added Shifter
+            And Cryobot boss.  Improved Elevator.  Re-arranged actors in
+            medical stage.
+		
+
+day 103:
+    code: added dynamic paletting.
+	  added balance instability updating.
+	  setup more things for difficulty system.
+	  added concept of lives, restored at end of each level.
+	  added loading of speed for terminal velocity from archetype.
+	  made physics bounding boxes dependent on velocity.
+    design: Added previously unused palettes.
+            Added various guard actors using new palettes.
+            Created and added new palettes to the build.
+            Improved the look of the balance meter image.
+            Added health-meter palette.  Corrected the palette of
+            the slider.  Today was national palette day.
+
+
+day 104:
+    code: added support for mosaic and rotational sprites.
+          added rotation fields allocator.
+	  demoed marble, rotation, mosaic fx and began demo of tail fx.
+    design: Added Cryobot segment ephemeral.
+            Added Maude tail and spike, and Cryobot weapons.
+            Made final credits bg.
+            Improved Minos running.
+	    Created Sniper actors.
+	    Filled roof1 with extra snipers.
+            Filled the vehicle yard with extra snipers.
+            Began populating the roof2 area with actors.
+
+
+day 105:
+    code: added simple ronald damage handler.
+          made Sam able to die from damage, unbalancing, et cetera.
+	  further work on bug hunting actor, sprite, and dynpal modules.
+    design: Added all actors to roof2, and all actors to sanitation.
+          Did task re-organization session
+
+
+day 106:
+    code: added Sam taking a hit ``Belmont style''.
+          added game over, between level screens. (sans polish)
+          made it possible to beat the game.
+          finished Sam's offset handler. (no more states to add, at least)
+    design: Added Minos blade ephemeral, Minos charge ephemeral, Minos 
+            Deadly blast ephemeral.  
+            Added Juno Ephemeral overlays.
+            Added new animations to Daedelus and added ephemeral overlays.
+
+
+day 107:
+    code: wrote music/sfx demo to prepare music subsystem.
+          added bass, noise, and pcm channel playback to music system.
+    design: Added Daedelus ephemeral overlay.
+            Scrapped grappling hook idea, in exchange for giving Quinn a
+            sliding manuevre.
+            Added sliding manuevre animation.
+            Added a couple palette shift monsters.
+	    Created a map of all character's quests, and used it to arrange
+            all the quests.
+            Prepared medical and vehicle yard stages for Quinn.
+    music: put together some noise channel instruments.
+
+
+day 108:
+    code: worked on getting pcm channels working efficiently and
+            cleanly.
+          made music engine sync to 60Hz instead of using another timer.
+    design: Prepared rooftop 1 stage for Quinn.
+            Almost prepared sanitation stage for Quinn, but stupidity prevented
+              full completion of that task.           
+    music: added some initial pcm samples.
+
+
+day 109:
+    code: more work on getting pcm working correctly.
+    design: Corrected stupid overwrite mistake of the previous day. (Sanitation
+              stage ready for Quinn.)
+            Made huge changes to the sewers stage, allowing Quinn to get through.
+
+
+day 110:
+    code: succeeding in getting pcm channels working cleanly,
+            efficiently!
+          wrote preliminary version of joseph -- midi/mod to ph0
+            converter.  able to convert simple midis to ph0 format.
+          integrated improved music engine back into main game.
+    design: Added new level sequences to Cold storage to allow Quinn to pass through.
+            Re-splined cold-storage due to changes.
+            Added small changes to Cryolab to allow Quinn to pass through.
+    music: spent some time harvesting instruments for squarewave banks,
+            also with bass echos via volume alteration in staccato, et
+            cetera.
+
+
+day 111:
+    code: added soundeffect bypass/playback.
+          added painful (non-fatal) segment support.
+          made interrupt handling significantly more sane, although it
+            still needs work.
+          added Quinn's handler, offsets, and quest.
+    design: Re-splined cryo-lab due to level changes.
+	    Worked on alterations to the zoo.
+    music: harvested some noise sound effects for in-game fx, especially
+            effects used for Sam and Quinn.
+
+
+day 112:
+    code: improvements on Quinn's handler -- fixed reloading problems,
+            added grenade throwing.
+          made clip region rectangular.
+          started work on more complex AI handlers.
+          worked on map run-length encoding.
+    design: Worked on the friggin zoo.  Discussed remaining days.
+
+
+day 113:
+    code: wrote pseudocode for new scrolling system.
+          implemented and debugged RLE tools, giving a 70% reduction in
+            map space usage.
+    design: Added death animations for Crawler, all betaguards, Scientist,
+            Ripper, Glenn, Gertrude, guards, captains, and some others. 
+            Wrote more AI info in EYE-CLIPS.
+
+
+day 114:
+    code: worked on scrolling system implementation.
+    design: designed most of Sam's boss encounters.  See EYE-CLIPS!
+    music: wrote ``Cold, but not Alone'', song for cold storage level.
+
+
+day 115:
+    code: continued working on scrolling system.  decided to start
+            seperate cvs branch to avoid disturbing main build.
+    design: Added crawlers retreating animation. (Hard work)
+            Fixed Sam's offsets
+	    Altered Quinn sprite
+	    Fixed Quinn offsets
+	    Wrote up more bossfight info
+  	    New ducking frames for Sam (and thusly adjusted offsets.)
+
+
+day 116:
+    code: worked on scrolling system implementation.
+    design: Added info on Sam's bossfights (Juno, Stomper, Juno and
+	    Daedelus, Shifter, Final Minos encounter)
+            Created images for final boss.
+
+
+day 117:
+    code: worked on scrolling system implementation.  Got horizontal
+            and vertical delta scrolling working.
+    design: re-arranged the final bossfight sequence.
+            Created various projectile ephemerals (lasers, ring
+              lasers, big ED blasts, shells, etc.)
+	    Made tweaks to some level data to accommodate scrolling and
+              compression. (Pipemaze, courtyard, apparatus, cryolab,
+              coldstorage, genetics, sanitation..)
+
+
+day 118:
+    code: got baseline realtime RLE scrolling working.
+          wrote ``lorraine'', a tool for lvd (level descriptor)
+            compilation.
+    design: tweaked the remaining layers for scrolling efficiency.
+            created ephemerals related to final boss-fight.
+            drafted to the new Zoo tilemap.
+
+
+day 119:
+    code: got 64-block realtime RLE scrolling working.
+          fixed segment tree creation/walks, added simple duplicate
+            removal heuristic.
+    design: began cross-over to usage of .lvds in place of hand 
+	      edited .s files.
+            made some changes to Billy.
+	    made some changes to stages.
+
+
+day 120:
+    code: added Billy's offsets, handler.
+          wrote health meter rendering code.
+          added down+jump support.
+    design: worked again on move to full lvd usage.  Most stages
+              made properly into lvds.
+
+
+day 121:
+    code: fixed(?) impaling on floors.
+          modified nancy to support a number of things for dynamic
+            seglisting.
+          added dynamic seglisting.
+    design: made changes to quantum lab stage, and cold storage for
+	      optimization
+            moved more stages into .lvd form.
+
+
+day 122:
+    code: worked on stretcher collision, random physics bugs.
+          added platform handler.
+    design: fixed all the levels (except mysterious layer in 
+              sanitation) after the switch to lvd.
+            made slight changes to the office stage.
+            made impossible to fall behind space in the grid stages.
+	    populated vehicle yard with actors.
+	    finally fixed the goddamn sanitation stage.
+
+
+day 123:
+    code: worked on safety scan.
+    design: populated roof1 and roof2 and sewers with actors.
+            began revamping of the zoo.
+
+
+day 124:
+    code: developed new safety scan algorithm.
+          wrote lns2poly, a tool to dump an LNS file as a set of
+            polygons (to test for closure, visually inspect, et cetera).
+          implemented safety scan intersection.
+    design: finished the new zoo.
+            made alterations to existing actors.
+            added actors and ephemerals related to shifter and stomper boss.
+
+            
+day 125:
+    code: implemented safety scan inclusion.
+          implemented/integrated random number generator and random
+            bitstream generator.
+          developed initial AI segprobing algorithm.
+    design: re-splined medical, vehicle yard, roof1, roof2.
+
+
+day 126:
+    code: wrote guard shooting, aiming down code.
+          implemented victims and trigger counter.
+    design: Added firing down frame for guards and quinn.  Re-splined sanitation 
+              sewers, icesewers, cold storage, cryogenics, boss-fights, office,
+              zoo.
+
+day 127:
+    design: resplined quantum lab, the grid, apparatus, boss fight, final climb.
+            finished off final boss frames and rubble actors.
+
+
+vim: syn=todo

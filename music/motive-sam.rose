@@ -1,0 +1,1058 @@
+#!Rosegarden
+#
+#  Musical Notation File
+#
+
+RV21
+
+
+Staves 3
+
+
+Name Staff 1
+Clef
+	Clef Name Treble
+Key
+	Key Name D  maj / B  min
+Rest
+	Dotted minim rest
+Rest
+	Dotted minim rest
+Rest
+	Dotted minim rest
+Rest
+	Dotted minim rest
+Rest
+	Dotted minim rest
+Rest
+	Dotted minim rest
+Rest
+	Dotted minim rest
+Rest
+	Dotted minim rest
+Rest
+	Dotted minim rest
+Rest
+	Dotted minim rest
+Rest
+	Dotted minim rest
+Rest
+	Dotted minim rest
+Rest
+	Dotted minim rest
+: Quaver 0 1 10 0
+Rest
+	Quaver rest
+: Quaver 0 1 9 0
+Rest
+	Quaver rest
+: Quaver 0 1 8 1
+Rest
+	Quaver rest
+: Quaver 0 1 9 0
+Rest
+	Quaver rest
+: Quaver 0 1 8 1
+Rest
+	Quaver rest
+: Quaver 0 1 7 0
+Rest
+	Quaver rest
+: Quaver 0 1 8 1
+Rest
+	Quaver rest
+: Quaver 0 1 7 0
+Rest
+	Quaver rest
+: Quaver 0 1 6 0
+Rest
+	Quaver rest
+Rest
+	Dotted minim rest
+Group
+	Beamed
+	: Quaver 0 1 8 1
+	Rest
+		Quaver rest
+	: Quaver 0 1 10 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 9 0
+	Rest
+		Quaver rest
+	End
+Group
+	Beamed
+	: Quaver 0 1 7 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 8 1
+	Rest
+		Quaver rest
+	: Quaver 0 1 8 1
+	Rest
+		Quaver rest
+	End
+: Quaver 0 1 8 1
+Rest
+	Quaver rest
+: Quaver 0 1 8 1
+Rest
+	Quaver rest
+: Quaver 0 1 8 1
+Rest
+	Quaver rest
+Key
+	Key Name E  maj / C# min
+Rest
+	Dotted minim rest
+: Quaver 0 1 10 0
+Rest
+	Quaver rest
+: Quaver 0 1 9 1
+Rest
+	Quaver rest
+: Quaver 0 1 8 1
+Rest
+	Quaver rest
+Group
+	Beamed
+	: Quaver 0 1 9 1
+	End
+Rest
+	Quaver rest
+Group
+	Beamed
+	: Quaver 0 1 8 1
+	End
+Rest
+	Quaver rest
+Group
+	Beamed
+	: Quaver 0 1 7 0
+	End
+Rest
+	Quaver rest
+Group
+	Beamed
+	: Quaver 0 1 7 0
+	End
+Rest
+	Quaver rest
+Group
+	Beamed
+	: Quaver 0 1 6 1
+	End
+Rest
+	Quaver rest
+Group
+	Beamed
+	: Quaver 0 1 5 1
+	End
+Rest
+	Quaver rest
+Rest
+	Dotted minim rest
+Group
+	Beamed
+	: Quaver 0 1 5 1
+	End
+Rest
+	Quaver rest
+Group
+	Beamed
+	: Quaver 0 1 7 0
+	End
+Rest
+	Quaver rest
+Group
+	Beamed
+	: Quaver 0 1 6 1
+	End
+Rest
+	Quaver rest
+Group
+	Beamed
+	: Quaver 0 1 4 0
+	End
+Rest
+	Quaver rest
+Group
+	Beamed
+	: Quaver 0 1 5 1
+	End
+Rest
+	Quaver rest
+Group
+	Beamed
+	: Quaver 0 1 5 1
+	End
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 6 1
+Rest
+	Quaver rest
+Rest
+	Dotted minim rest
+Group
+	Beamed
+	: Quaver 0 1 6 1
+	End
+Rest
+	Quaver rest
+Group
+	Beamed
+	: Quaver 0 1 5 1
+	End
+Rest
+	Quaver rest
+Group
+	Beamed
+	: Quaver 0 1 4 0
+	End
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 4 0
+Rest
+	Quaver rest
+: Quaver 0 1 3 0
+Rest
+	Quaver rest
+: Quaver 0 1 4 0
+Rest
+	Quaver rest
+: Quaver 0 1 3 0
+Rest
+	Quaver rest
+: Quaver 0 1 2 1
+Rest
+	Quaver rest
+Key
+	Key Name D  maj / B  min
+Rest
+	Dotted minim rest
+Group
+	Beamed
+	: Quaver 0 1 6 0
+	End
+Rest
+	Quaver rest
+Group
+	Beamed
+	: Quaver 0 1 9 0
+	End
+Rest
+	Quaver rest
+Group
+	Beamed
+	: Quaver 0 1 7 0
+	End
+Rest
+	Quaver rest
+Group
+	Beamed
+	: Quaver 0 1 5 1
+	End
+Rest
+	Quaver rest
+Group
+	Beamed
+	: Quaver 0 1 7 0
+	End
+Rest
+	Quaver rest
+Group
+	Beamed
+	: Quaver 0 1 6 0
+	End
+Rest
+	Quaver rest
+Group
+	Beamed
+	: Quaver 0 1 5 1
+	End
+Rest
+	Quaver rest
+Group
+	Beamed
+	: Quaver 0 1 4 0
+	End
+Rest
+	Quaver rest
+Group
+	Beamed
+	: Quaver 0 1 3 0
+	End
+Rest
+	Quaver rest
+End
+
+Name Staff 2
+Clef
+	Clef Name Alto  
+Key
+	Key Name D  maj / B  min
+Group
+	Beamed
+	: Quaver 0 1 8 1
+	Rest
+		Quaver rest
+	: Quaver 0 1 10 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 9 0
+	Rest
+		Quaver rest
+	End
+Group
+	Beamed
+	: Quaver 0 1 7 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 8 1
+	Rest
+		Quaver rest
+	: Quaver 0 1 8 1
+	Rest
+		Quaver rest
+	End
+: Quaver 0 1 8 1
+Rest
+	Quaver rest
+: Quaver 0 1 8 1
+Rest
+	Quaver rest
+: Quaver 0 1 8 1
+Rest
+	Quaver rest
+: Quaver 0 1 10 0
+Rest
+	Quaver rest
+: Quaver 0 1 9 0
+Rest
+	Quaver rest
+: Quaver 0 1 7 0
+Rest
+	Quaver rest
+Group
+	Beamed
+	: Quaver 0 1 8 1
+	Rest
+		Quaver rest
+	: Quaver 0 1 8 1
+	Rest
+		Quaver rest
+	: Quaver 0 1 8 1
+	Rest
+		Quaver rest
+	: Quaver 0 1 8 1
+	Rest
+		Quaver rest
+	End
+: Quaver 0 1 9 0
+Rest
+	Quaver rest
+: Quaver 0 1 9 0
+Rest
+	Quaver rest
+: Quaver 0 1 9 0
+Rest
+	Quaver rest
+: Quaver 0 1 10 0
+Rest
+	Quaver rest
+: Quaver 0 1 10 0
+Rest
+	Quaver rest
+: Quaver 0 1 10 0
+Rest
+	Quaver rest
+: Quaver 0 1 7 0
+Rest
+	Quaver rest
+: Quaver 0 1 8 1
+Rest
+	Quaver rest
+Group
+	Beamed
+	: Quaver 0 1 11 0
+	: Quaver 0 1 10 0
+	: Quaver 0 1 9 0
+	End
+Group
+	Beamed
+	: Quaver 0 1 8 1
+	: Quaver 0 1 7 0
+	: Quaver 0 1 6 0
+	End
+: Dotted minim 0 3 4 0 6 0 8 1 0 "Bm"
+: Dotted minim 0 3 5 1 7 0 9 0 0 "C#m-5"
+: Dotted minim 0 3 6 0 8 1 10 0 0 "D"
+Group
+	Beamed
+	: Quaver 0 1 11 0
+	: Quaver 0 1 10 0
+	: Quaver 0 1 9 0
+	End
+Group
+	Beamed
+	: Quaver 0 1 8 1
+	: Quaver 0 1 7 0
+	: Quaver 0 1 6 0
+	End
+: Dotted minim 0 3 4 0 6 0 8 1 0 "Bm"
+: Dotted minim 0 3 5 1 7 0 9 0 0 "C#m-5"
+: Dotted minim 0 3 6 0 8 1 10 0 0 "D"
+Group
+	Beamed
+	: Quaver 0 1 11 0
+	: Quaver 0 1 10 0
+	: Quaver 0 1 9 0
+	End
+Group
+	Beamed
+	: Quaver 0 1 8 1
+	: Quaver 0 1 7 0
+	: Quaver 0 1 6 0
+	End
+: Dotted minim 0 3 4 0 6 0 8 1 0 "Bm"
+: Dotted minim 0 3 5 1 7 0 9 0 0 "C#m-5"
+: Dotted minim 0 3 6 0 8 1 10 0 0 "D"
+Group
+	Beamed
+	Key
+		Key Name E  maj / C# min
+	: Quaver 0 1 12 1
+	: Quaver 0 1 11 0
+	: Quaver 0 1 10 0
+	End
+Group
+	Beamed
+	: Quaver 0 1 9 1
+	: Quaver 0 1 8 1
+	: Quaver 0 1 7 0
+	End
+: Dotted minim 0 3 5 1 7 0 9 1 0 "C#m"
+: Dotted minim 0 3 6 1 8 1 10 0 0 "D#m-5"
+: Dotted minim 0 3 7 0 9 1 11 0 0 "E"
+Group
+	Beamed
+	: Quaver 0 1 12 1
+	: Quaver 0 1 11 0
+	: Quaver 0 1 10 0
+	End
+Group
+	Beamed
+	: Quaver 0 1 9 1
+	: Quaver 0 1 8 1
+	: Quaver 0 1 7 0
+	End
+: Dotted minim 0 3 5 1 7 0 9 1 0 "C#m"
+: Dotted minim 0 3 6 1 8 1 10 0 0 "D#m-5"
+: Dotted minim 0 3 7 0 9 1 11 0 0 "E"
+Group
+	Beamed
+	: Quaver 0 1 12 1
+	: Quaver 0 1 11 0
+	: Quaver 0 1 10 0
+	End
+Group
+	Beamed
+	: Quaver 0 1 9 1
+	: Quaver 0 1 8 1
+	: Quaver 0 1 7 0
+	End
+: Dotted minim 0 3 5 1 7 0 9 1 0 "C#m"
+: Dotted minim 0 3 6 1 8 1 10 0 0 "D#m-5"
+: Dotted minim 0 3 7 0 9 1 11 0 0 "E"
+Key
+	Key Name D  maj / B  min
+Group
+	Beamed
+	: Quaver 0 1 11 0
+	: Quaver 0 1 10 0
+	: Quaver 0 1 9 0
+	End
+Group
+	Beamed
+	: Quaver 0 1 8 1
+	: Quaver 0 1 7 0
+	: Quaver 0 1 6 0
+	End
+: Dotted minim 0 3 4 0 6 0 8 1 0 "Bm"
+: Dotted minim 0 3 5 1 7 0 9 0 0 "C#m-5"
+: Dotted minim 0 3 6 0 8 1 10 0 0 "D"
+Rest
+	Dotted minim rest
+: Crotchet 0 1 4 0
+: Minim 0 1 4 0
+: Crotchet 0 1 5 1
+: Minim 0 1 5 1
+: Crotchet 0 1 6 0
+: Minim 0 1 6 0
+Rest
+	Dotted minim rest
+: Crotchet 0 1 7 0
+: Minim 0 1 7 0
+: Crotchet 0 1 8 1
+: Minim 0 1 8 1
+: Crotchet 0 1 9 0
+: Minim 0 1 9 0
+: Crotchet 0 3 8 1 10 0 12 1 0 "F#m"
+: Minim 0 3 8 1 10 0 12 1 0 "F#m"
+: Crotchet 0 3 9 0 11 0 13 0 0 "G"
+: Minim 0 3 9 0 11 0 13 0 0 "G"
+: Crotchet 0 3 10 0 12 1 14 0 0 "A"
+: Minim 0 3 10 0 12 1 14 0 0 "A"
+End
+
+Name Staff 3
+Clef
+	Clef Name Bass  
+Key
+	Key Name D  maj / B  min
+Group
+	Beamed
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	End
+Group
+	Beamed
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	End
+Group
+	Beamed
+	Rest
+		Quaver rest
+	End
+Group
+	Beamed
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	End
+Group
+	Beamed
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	End
+Group
+	Beamed
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	End
+Group
+	Beamed
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	End
+Group
+	Beamed
+	Rest
+		Quaver rest
+	End
+Group
+	Beamed
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	End
+Group
+	Beamed
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	End
+Group
+	Beamed
+	Rest
+		Quaver rest
+	End
+Group
+	Beamed
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	End
+Group
+	Beamed
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	End
+Group
+	Beamed
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	End
+Group
+	Beamed
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	End
+Group
+	Beamed
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	End
+Group
+	Beamed
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	End
+Group
+	Beamed
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	End
+Group
+	Beamed
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	End
+Group
+	Beamed
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	End
+Group
+	Beamed
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	End
+Group
+	Beamed
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	End
+Group
+	Beamed
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	End
+Key
+	Key Name E  maj / C# min
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Rest
+	Quaver rest
+: Quaver 0 1 5 1
+Key
+	Key Name D  maj / B  min
+Group
+	Beamed
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	End
+Group
+	Beamed
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	End
+Group
+	Beamed
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	End
+Group
+	Beamed
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	Rest
+		Quaver rest
+	: Quaver 0 1 4 0
+	End
+Group
+	Beamed
+	: Quaver 0 1 11 0
+	: Quaver 0 1 10 0
+	: Quaver 0 1 9 0
+	End
+Group
+	Beamed
+	: Quaver 0 1 8 1
+	: Quaver 0 1 7 0
+	: Quaver 0 1 6 0
+	End
+Group
+	Beamed
+	: Quaver 0 1 12 1
+	: Quaver 0 1 4 0
+	: Quaver 0 1 11 0
+	End
+Group
+	Beamed
+	: Quaver 0 1 4 0
+	: Quaver 0 1 10 0
+	: Quaver 0 1 4 0
+	End
+Group
+	Beamed
+	: Quaver 0 1 11 0
+	: Quaver 0 1 4 0
+	: Quaver 0 1 10 0
+	End
+Group
+	Beamed
+	: Quaver 0 1 4 0
+	: Quaver 0 1 9 0
+	: Quaver 0 1 4 0
+	End
+Group
+	Beamed
+	: Quaver 0 1 10 0
+	: Quaver 0 1 4 0
+	: Quaver 0 1 9 0
+	End
+Group
+	Beamed
+	: Quaver 0 1 4 0
+	: Quaver 0 1 8 1
+	: Quaver 0 1 4 0
+	End
+Group
+	Beamed
+	: Quaver 0 1 11 0
+	: Quaver 0 1 10 0
+	: Quaver 0 1 9 0
+	End
+Group
+	Beamed
+	: Quaver 0 1 8 1
+	: Quaver 0 1 7 0
+	: Quaver 0 1 6 0
+	End
+Group
+	Beamed
+	: Quaver 0 1 12 1
+	: Quaver 0 1 4 0
+	: Quaver 0 1 11 0
+	End
+Group
+	Beamed
+	: Quaver 0 1 4 0
+	: Quaver 0 1 10 0
+	: Quaver 0 1 4 0
+	End
+Group
+	Beamed
+	: Quaver 0 1 11 0
+	: Quaver 0 1 4 0
+	: Quaver 0 1 10 0
+	End
+Group
+	Beamed
+	: Quaver 0 1 4 0
+	: Quaver 0 1 9 0
+	: Quaver 0 1 4 0
+	End
+Group
+	Beamed
+	: Quaver 0 1 10 0
+	: Quaver 0 1 4 0
+	End
+Group
+	Beamed
+	: Quaver 0 1 9 0
+	: Quaver 0 1 4 0
+	: Quaver 0 1 8 1
+	End
+Group
+	Beamed
+	: Quaver 0 1 4 0
+	End
+: Quaver 0 1 4 0
+: Quaver 0 1 4 0
+: Quaver 0 1 4 0
+: Quaver 0 1 4 0
+: Quaver 0 1 4 0
+: Quaver 0 1 4 0
+: Quaver 0 1 4 0
+: Quaver 0 1 4 0
+: Quaver 0 1 4 0
+: Quaver 0 1 4 0
+: Quaver 0 1 4 0
+: Quaver 0 1 4 0
+: Quaver 0 1 4 0
+: Quaver 0 1 4 0
+: Quaver 0 1 4 0
+: Quaver 0 1 4 0
+: Quaver 0 1 4 0
+: Quaver 0 1 4 0
+End
+
+Bar 0 0 time 6 8
+Bar 1 0 time 6 8
+Bar 2 0 time 6 8
+Stave 0 tags 1 1 connected 0 program 46
+Stave 1 tags 1 1 connected 0 program 19
+Stave 2 tags 1 1 connected 0 program 19
+
+End
