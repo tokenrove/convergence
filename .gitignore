@@ -1,0 +1,11 @@
+CVS/
+
+*~
+*.o
+*.cmx
+*.cmi
+
+main
+main.bin
+tools/nancy
+tools/pcx2lns
