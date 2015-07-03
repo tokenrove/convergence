@@ -8,7 +8,7 @@ song_crazy_quest_data:
 	.short 4	    @ order len
         .short 0            @ pad
 	@ order table
-	.byte 0, 0, 255, 0
+        .byte 255, 0, 255, 0
 	@ pattern table
 	.word pat0
 pat0:	.byte 0b101110
